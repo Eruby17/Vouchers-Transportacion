@@ -60,10 +60,10 @@ with col3:
     adultos = st.number_input("Adultos / Adults", min_value=1, value=2, step=1)
     ninos = st.number_input("Niños / Children", min_value=0, value=0, step=1)
     
-    # Opción simplificada de Car Seat solicitada
+    # Opción simplificada de Car Seat
     requiere_car_seats = st.checkbox("¿Requiere Car Seats?")
 
-# Concatenación solicitada para el voucher
+# Concatenación para el voucher (ej: American Airlines 2468)
 vuelo_llegada_completo = f"{aerolinea_llegada} {num_vuelo_llegada}".strip()
 
 # --- SECCIÓN DINÁMICA DE SALIDA (ROUND TRIP) ---
@@ -94,7 +94,7 @@ if tipo_viaje == "Round Trip":
 
 st.markdown("---")
 
-# --- TEXTOS OFICIALES EN INGLÉS ---
+# --- TEXTOS OFICIALES EN INGLÉS (CORREGIDOS SIN CARACTERES ESPECIALES) ---
 INFO_ARRIVALS = (
     "AIRPORT PROCEDURES FOR YOUR ARRIVAL:\n"
     "After passing Mexican Immigration, claim checked luggage and clear Customs, "
@@ -104,20 +104,20 @@ INFO_ARRIVALS = (
 )
 
 INFO_POLICIES = (
-    "IMPORTANT POLICIES & CONTACT INFO:\n\n"
-    "• For any modifications, you must contact us directly at reservations@casadorada.com and "
+    "IMPORTANT POLICIES AND CONTACT INFO:\n\n"
+    "- For any modifications, you must contact us directly at reservations@casadorada.com and "
     "reservationscd@casadorada.com. Any modifications require to be asked for and confirmed "
     "at least 24 hours before the service.\n\n"
-    "• Please be aware that for departures, the driver will wait up to 10 additional minutes "
+    "- Please be aware that for departures, the driver will wait up to 10 additional minutes "
     "from the scheduled pick-up time. After this time, the driver will have to leave the "
     "hotel, and the company will not be able to provide a refund.\n\n"
-    "• Please be advised that the transportation service is arranged by the name of guest reservation. "
+    "- Please be advised that the transportation service is arranged by the name of guest reservation. "
     "This service is not transferable and cannot be changed to another guest as a gift.\n\n"
     "Reservations Toll Free: 1-866-448-0151\n"
     "Monday to Friday from 8:00 a.m. to 07:00 p.m. (Pacific Time)"
 )
 
-# --- CLASE PDF CORREGIDA ---
+# --- CLASE PDF ---
 class VoucherPDF(FPDF):
     def __init__(self, logo_file=None):
         super().__init__()
@@ -136,8 +136,8 @@ class VoucherPDF(FPDF):
         self.set_y(-15)
         self.set_font("Helvetica", "I", 8)
         self.set_text_color(120, 120, 120)
-        # Corregido: Se cambió el guion largo Unicode por uno estándar compatible
-        self.cell(0, 10, f"Page {self.page_no()}/{{nb}} - Casa Dorada Resort & Spa", align="C")
+        # Corregido: Se usa un guion normal compatible con la fuente estándar
+        self.cell(0, 10, f"Page {self.page_no()}/{{nb}} - Casa Dorada Resort and Spa", align="C")
 
 def crear_pdf():
     pdf = VoucherPDF(logo_file=logo_subido)
@@ -151,7 +151,7 @@ def crear_pdf():
     pdf.line(10, 38, 200, 38)
     pdf.ln(3)
     
-    # Función auxiliar para renglones
+    # Función auxiliar para filas limpias
     def write_row(label, val):
         pdf.set_font("Helvetica", "B", 11)
         pdf.cell(60, 8, label)
@@ -162,7 +162,7 @@ def crear_pdf():
     write_row("Confirmation Number:", confirmacion)
     write_row("Passengers:", f"{adultos} Adults / {ninos} Children")
     
-    # Cambio solicitado: Mostrar simplemente "Car Seat" si la opción está activa
+    # Mostrar limpiamente "Car Seat" si la casilla está activa
     if requiere_car_seats:
         write_row("Special Request:", "Car Seat")
         
@@ -176,7 +176,7 @@ def crear_pdf():
     write_row("Arrival Flight:", vuelo_llegada_completo)
     write_row("Estimated Time of Arrival:", f"{hora_llegada.strftime('%H:%M')} HRS")
     
-    # Sección de Salida si aplica
+    # Sección de Salida dinámica
     if tipo_viaje == "Round Trip":
         pdf.ln(4)
         pdf.set_font("Helvetica", "B", 11)
@@ -191,7 +191,7 @@ def crear_pdf():
     
     pdf.ln(10)
     
-    # Recuadro de Alerta
+    # Recuadro de Alerta con fondo amarillo claro
     pdf.set_fill_color(255, 242, 204)
     pdf.set_text_color(150, 80, 0)
     pdf.set_font("Helvetica", "B", 10.5)
