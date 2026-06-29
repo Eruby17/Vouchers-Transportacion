@@ -52,20 +52,16 @@ with col1:
     num_vuelo_llegada = st.text_input("Arrival Flight Number", placeholder="Ej: 2468", key="num_arr")
 
 with col2:
-    hora_llegada = st.time_input("Estimated Time of Arrival (ETA)", datetime.time(12, 0))
+    # step=60 permite seleccionar y escribir minutos exactos uno por uno (ej. 11:28)
+    hora_llegada = st.time_input("Estimated Time of Arrival (ETA)", datetime.time(12, 0), step=60)
     confirmacion = st.text_input("Confirmation Number", placeholder="Ej: CD-98765").upper()
 
 with col3:
     adultos = st.number_input("Adultos / Adults", min_value=1, value=2, step=1)
     ninos = st.number_input("Niños / Children", min_value=0, value=0, step=1)
     
+    # Opción simplificada de Car Seat solicitada
     requiere_car_seats = st.checkbox("¿Requiere Car Seats?")
-    if requiere_car_seats:
-        cant_car_seats = st.number_input("¿Cuántos?", min_value=1, max_value=4, value=1)
-        tipo_car_seat = st.selectbox("Tipo", ["Baby Capsule", "Convertible", "Booster"])
-    else:
-        cant_car_seats = 0
-        tipo_car_seat = "N/A"
 
 # Concatenación solicitada para el voucher
 vuelo_llegada_completo = f"{aerolinea_llegada} {num_vuelo_llegada}".strip()
@@ -88,13 +84,13 @@ if tipo_viaje == "Round Trip":
         vuelo_salida_completo = f"{aerolinea_salida} {num_vuelo_salida}".strip()
 
     with col_dep2:
-        hora_salida = st.time_input("Flight Departure Time", datetime.time(15, 0))
+        hora_salida = st.time_input("Flight Departure Time", datetime.time(15, 0), step=60)
         
         # Cálculo por default: 3 horas y media antes del vuelo de salida
         dt_vuelo = datetime.datetime.combine(datetime.date.today(), hora_salida)
         dt_pickup_default = dt_vuelo - datetime.timedelta(hours=3, minutes=30)
         
-        hora_pickup = st.time_input("Scheduled Pick-up Time (Auto-calculated 3.5h before)", dt_pickup_default.time())
+        hora_pickup = st.time_input("Scheduled Pick-up Time (Auto-calculated)", dt_pickup_default.time(), step=60)
 
 st.markdown("---")
 
@@ -140,7 +136,8 @@ class VoucherPDF(FPDF):
         self.set_y(-15)
         self.set_font("Helvetica", "I", 8)
         self.set_text_color(120, 120, 120)
-        self.cell(0, 10, f"Page {self.page_no()}/{{nb}} — Casa Dorada Resort & Spa", align="C")
+        # Corregido: Se cambió el guion largo Unicode por uno estándar compatible
+        self.cell(0, 10, f"Page {self.page_no()}/{{nb}} - Casa Dorada Resort & Spa", align="C")
 
 def crear_pdf():
     pdf = VoucherPDF(logo_file=logo_subido)
@@ -154,7 +151,7 @@ def crear_pdf():
     pdf.line(10, 38, 200, 38)
     pdf.ln(3)
     
-    # Función auxiliar interna para evitar el bug de 'font_style'
+    # Función auxiliar para renglones
     def write_row(label, val):
         pdf.set_font("Helvetica", "B", 11)
         pdf.cell(60, 8, label)
@@ -165,8 +162,9 @@ def crear_pdf():
     write_row("Confirmation Number:", confirmacion)
     write_row("Passengers:", f"{adultos} Adults / {ninos} Children")
     
+    # Cambio solicitado: Mostrar simplemente "Car Seat" si la opción está activa
     if requiere_car_seats:
-        write_row("Special Request:", f"{cant_car_seats} Car Seat(s) ({tipo_car_seat})")
+        write_row("Special Request:", "Car Seat")
         
     pdf.ln(4)
     pdf.set_font("Helvetica", "B", 11)
@@ -178,7 +176,7 @@ def crear_pdf():
     write_row("Arrival Flight:", vuelo_llegada_completo)
     write_row("Estimated Time of Arrival:", f"{hora_llegada.strftime('%H:%M')} HRS")
     
-    # Si es viaje redondo, añadimos la sección de salida abajo
+    # Sección de Salida si aplica
     if tipo_viaje == "Round Trip":
         pdf.ln(4)
         pdf.set_font("Helvetica", "B", 11)
@@ -193,7 +191,7 @@ def crear_pdf():
     
     pdf.ln(10)
     
-    # Recuadro de Alerta (Arrival procedures)
+    # Recuadro de Alerta
     pdf.set_fill_color(255, 242, 204)
     pdf.set_text_color(150, 80, 0)
     pdf.set_font("Helvetica", "B", 10.5)
