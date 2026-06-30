@@ -127,31 +127,28 @@ class VoucherPDF(FPDF):
 
     def header(self):
         if self.page_no() == 1:
+            # Fixed and explicit logo dimensions to guarantee no overlaps
             if self.logo_file:
                 try: 
-                    self.image(self.logo_file, x=62.5, y=2, w=85, h=0)
-                    ultimo_y_logo = 24
+                    self.image(self.logo_file, x=62.5, y=4, w=85, h=16)
                 except Exception: 
                     self.placeholder_logo()
-                    ultimo_y_logo = 25
             else:
                 self.placeholder_logo()
-                ultimo_y_logo = 25
 
-            # Welcome text - Title converted to Spanish "Hola"
-            self.set_xy(14, ultimo_y_logo + 3)
-            self.set_font("Helvetica", "B", 17)
-            self.set_text_color(15, 23, 42) # Dark Slate #0F172A
-            self.cell(0, 7, f"Hola, {nombre_huesped}!", ln=1, align="L")
+            # Welcome text - Absolute safe coordinates
+            self.set_xy(12, 24)
+            self.set_font("Helvetica", "B", 16)
+            self.set_text_color(15, 23, 42)
+            self.cell(0, 6, f"Hola, {nombre_huesped}!", ln=1, align="L")
             
             self.set_font("Helvetica", "", 9.5)
-            self.set_text_color(100, 116, 139) # Muted Slate
+            self.set_text_color(100, 116, 139)
             self.cell(0, 4, "We are Corporate Travel Alliance and it will be a pleasure to welcome you.", ln=1, align="L")
-            self.ln(1)
 
     def placeholder_logo(self):
         self.set_draw_color(226, 232, 240)
-        self.rect(62.5, 2, 85, 20)
+        self.rect(62.5, 4, 85, 16)
         self.set_xy(62.5, 10)
         self.set_font("Helvetica", "I", 9)
         self.set_text_color(148, 163, 184)
@@ -170,6 +167,9 @@ class VoucherPDF(FPDF):
         es_negrita = False
         
         for segmento in segmentos:
+            if not segmento:
+                es_negrita = not es_negrita
+                continue
             if es_negrita:
                 self.set_font("Helvetica", "B", pt_size)
                 self.set_text_color(*c_bold)
@@ -179,7 +179,6 @@ class VoucherPDF(FPDF):
             
             ancho_texto = self.get_string_width(segmento)
             self.cell(ancho_texto, alto_celda, segmento, border=0)
-            self.set_x(self.get_x())
             es_negrita = not es_negrita
 
 def crear_pdf():
@@ -187,71 +186,80 @@ def crear_pdf():
     pdf.alias_nb_pages()
     pdf.add_page()
     
-    # --- CENTRAL BLOCK: AIRPORT PROCEDURES ---
-    pdf.set_y(44)
-    pdf.set_fill_color(248, 250, 252) # Light neutral background
+    # --- BLOCK 1: AIRPORT PROCEDURES (y=36) ---
+    pdf.set_y(36)
+    pdf.set_fill_color(248, 250, 252)
     pdf.set_draw_color(241, 245, 249)
-    pdf.rect(12, pdf.get_y(), 186, 37, style="FD")
+    pdf.rect(12, 36, 186, 36, style="FD")
     
-    pdf.set_xy(16, pdf.get_y() + 2)
+    pdf.set_xy(16, 38)
     pdf.set_font("Helvetica", "B", 10.5)
-    pdf.set_text_color(37, 99, 235) # Executive Blue #2563EB
+    pdf.set_text_color(37, 99, 235)
     pdf.cell(0, 5, "AIRPORT PROCEDURES - HOW TO FIND US", ln=1)
     
-    # Procedure lines - Split with custom box for timeshare alert
-    pdf.escribir_linea_mixta(16, pdf.get_y() + 1, "1. After passing Mexican Immigration, claim luggage and clear Customs.", 5.0)
+    pdf.escribir_linea_mixta(16, 44, "1. After passing Mexican Immigration, claim luggage and clear Customs.", 4.5)
     
     # Timeshare Highlight Box
     pdf.set_fill_color(241, 245, 249)
-    pdf.rect(16, pdf.get_y() + 6.2, 124, 6, style="F")
-    pdf.escribir_linea_mixta(18, pdf.get_y() + 6.7, "2. **PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.**", 5.0, c_bold=(220, 38, 38)) # Red alert
+    pdf.rect(16, 49.5, 124, 6, style="F")
+    pdf.escribir_linea_mixta(18, 50, "2. **PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.**", 4.5, c_bold=(220, 38, 38))
     
-    pdf.escribir_linea_mixta(16, pdf.get_y() + 13.4, "3. Walk outside: Our official staff is waiting for you **UNDER UMBRELLA #4**.", 5.0)
-    pdf.escribir_linea_mixta(16, pdf.get_y() + 18.6, "4. Look for the recognizable transportation sign shown on the right.", 5.0)
+    pdf.escribir_linea_mixta(16, 56.5, "3. Walk outside: Our official staff is waiting for you **UNDER UMBRELLA #4**.", 4.5)
+    pdf.escribir_linea_mixta(16, 61.5, "4. Look for the recognizable transportation sign shown on the right.", 4.5)
         
     if os.path.exists(CARTEL_PATH):
-        try: pdf.image(CARTEL_PATH, x=148, y=46, w=38, h=0)
+        try: pdf.image(CARTEL_PATH, x=148, y=37.5, w=38, h=0)
         except Exception: pass
 
-    # --- SIDE-BY-SIDE DOUBLE COLUMN CARD LAYOUT ---
-    # Column 1 (Left): width=91mm | Column 2 (Right): width=91mm | Gap=4mm
-    y_card_start = 86
-    
-    # Left Side Card: Trip Summary
-    pdf.set_xy(12, y_card_start)
+    # --- BLOCK 2: TRIP SUMMARY (Full Width Box at y=76) ---
+    pdf.set_xy(12, 76)
     pdf.set_fill_color(255, 255, 255)
     pdf.set_draw_color(226, 232, 240)
-    pdf.rect(12, y_card_start, 91, 33, style="FD") # Fixed height boundary box
+    pdf.rect(12, 76, 186, 22, style="FD")
     
-    pdf.set_xy(15, y_card_start + 2)
+    pdf.set_xy(15, 78)
     pdf.set_font("Helvetica", "B", 10)
     pdf.set_text_color(15, 23, 42)
-    pdf.cell(0, 5, "TRIP SUMMARY", ln=1)
+    pdf.cell(0, 4, "TRIP SUMMARY", ln=1)
     
-    datos_trip = [
-        ("Confirmation Number:", confirmacion),
-        ("Transfer Type:", "Round Trip" if tipo_viaje == "Round Trip" else "One Way"),
-        ("Passengers:", f"{adultos} Ad. / {ninos} Ch.")
-    ]
+    # Horizontal data items for Trip Summary
+    pdf.set_xy(15, 84)
+    pdf.set_font("Helvetica", "B", 8.5)
+    pdf.set_text_color(100, 116, 139)
+    pdf.cell(32, 5, "Confirmation Number:")
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(15, 23, 42)
+    pdf.cell(35, 5, confirmacion)
+    
+    pdf.set_font("Helvetica", "B", 8.5)
+    pdf.set_text_color(100, 116, 139)
+    pdf.cell(24, 5, "Transfer Type:")
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(15, 23, 42)
+    pdf.cell(35, 5, "Round Trip" if tipo_viaje == "Round Trip" else "One Way")
+    
+    pdf.set_font("Helvetica", "B", 8.5)
+    pdf.set_text_color(100, 116, 139)
+    pdf.cell(20, 5, "Passengers:")
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(15, 23, 42)
+    pdf.cell(0, 5, f"{adultos} Ad. / {ninos} Ch.", ln=1)
+    
     if requiere_car_seats:
-        datos_trip.append(("Special Add-on:", "Car Seat Added"))
-        
-    y_item = y_card_start + 8
-    for label, val in datos_trip:
-        pdf.set_xy(15, y_item)
+        pdf.set_xy(15, 90)
         pdf.set_font("Helvetica", "B", 8.5)
         pdf.set_text_color(100, 116, 139)
-        pdf.cell(36, 5, label)
+        pdf.cell(32, 5, "Special Add-on:")
         pdf.set_font("Helvetica", "", 9)
-        pdf.set_text_color(15, 23, 42)
-        pdf.cell(0, 5, str(val))
-        y_item += 5.5
+        pdf.set_text_color(37, 99, 235)
+        pdf.cell(0, 5, "Complimentary Car Seat Added")
 
-    # Right Side Card: Arriving Details
-    pdf.set_xy(107, y_card_start)
-    pdf.rect(107, y_card_start, 91, 33, style="FD")
+    # --- BLOCK 3: SIDE-BY-SIDE DETAILS (y=102) ---
+    # Left Column Box (Arriving Details)
+    pdf.set_xy(12, 102)
+    pdf.rect(12, 102, 91, 31, style="FD")
     
-    pdf.set_xy(110, y_card_start + 2)
+    pdf.set_xy(15, 104)
     pdf.set_font("Helvetica", "B", 10)
     pdf.set_text_color(15, 23, 42)
     pdf.cell(0, 5, "ARRIVING DETAILS", ln=1)
@@ -261,76 +269,70 @@ def crear_pdf():
         ("Flight & Airline:", vuelo_llegada_completo),
         ("Flight Arrival Time:", hora_llegada.strftime('%I:%M %p'))
     ]
-    y_item = y_card_start + 8
+    y_item = 110
     for label, val in datos_arr:
-        pdf.set_xy(110, y_item)
+        pdf.set_xy(15, y_item)
         pdf.set_font("Helvetica", "B", 8.5)
         pdf.set_text_color(100, 116, 139)
-        pdf.cell(34, 5, label)
+        pdf.cell(32, 4.5, label)
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(15, 23, 42)
-        pdf.cell(0, 5, str(val))
-        y_item += 5.5
+        pdf.cell(0, 4.5, str(val))
+        y_item += 5.0
 
-    # Full Width or Extended layout for Returning details (If Round Trip is active)
-    y_next_block = y_card_start + 36.5
+    # Right Column Box (Returning Details)
+    pdf.set_xy(107, 102)
+    pdf.rect(107, 102, 91, 31, style="FD")
+    
+    pdf.set_xy(110, 104)
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.set_text_color(15, 23, 42)
+    pdf.cell(0, 5, "RETURNING DETAILS", ln=1)
+    
     if tipo_viaje == "Round Trip":
-        pdf.set_xy(12, y_next_block)
-        pdf.rect(12, y_next_block, 186, 22, style="FD")
-        
-        pdf.set_xy(15, y_next_block + 2)
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.set_text_color(15, 23, 42)
-        pdf.cell(0, 4, "RETURNING DETAILS", ln=1)
-        
-        # Horizontal item layout to optimize vertical spacing inside returning card
-        pdf.set_xy(15, y_next_block + 7.5)
-        pdf.set_font("Helvetica", "B", 8.5)
-        pdf.set_text_color(100, 116, 139)
-        pdf.cell(26, 5, "Departure Date:")
-        pdf.set_font("Helvetica", "", 9)
-        pdf.set_text_color(15, 23, 42)
-        pdf.cell(38, 5, fecha_salida.strftime('%B %d, %Y'))
-        
-        pdf.set_font("Helvetica", "B", 8.5)
-        pdf.set_text_color(100, 116, 139)
-        pdf.cell(26, 5, "Flight & Airline:")
-        pdf.set_font("Helvetica", "", 9)
-        pdf.set_text_color(15, 23, 42)
-        pdf.cell(0, 5, vuelo_salida_completo, ln=1)
-        
-        pdf.set_xy(15, y_next_block + 13.5)
-        pdf.set_font("Helvetica", "B", 8.5)
-        pdf.set_text_color(100, 116, 139)
-        pdf.cell(26, 5, "Flight Time:")
-        pdf.set_font("Helvetica", "", 9)
-        pdf.set_text_color(15, 23, 42)
-        pdf.cell(38, 5, hora_salida.strftime('%I:%M %p'))
-        
-        pdf.set_font("Helvetica", "B", 8.5)
-        pdf.set_text_color(100, 116, 139)
-        pdf.cell(26, 5, "Hotel Pick-up:")
-        pdf.set_font("Helvetica", "B", 9)
-        pdf.set_text_color(37, 99, 235) # Blue accent on pickup time
-        pdf.cell(0, 5, f"{hora_pickup.strftime('%I:%M %p')} (Please be at the lobby)")
-        
-        y_next_block += 25.5
+        datos_dep = [
+            ("Departure Date:", fecha_salida.strftime('%B %d, %Y')),
+            ("Flight & Airline:", vuelo_salida_completo),
+            ("Flight Time:", hora_salida.strftime('%I:%M %p')),
+            ("Hotel Pick-up:", f"{hora_pickup.strftime('%I:%M %p')} (Lobby)")
+        ]
+        y_item = 110
+        for label, val in datos_dep:
+            pdf.set_xy(110, y_item)
+            pdf.set_font("Helvetica", "B", 8.5)
+            pdf.set_text_color(100, 116, 139)
+            pdf.cell(32, 4.2, label)
+            
+            if "Pick-up" in label:
+                pdf.set_font("Helvetica", "B", 8.5)
+                pdf.set_text_color(37, 99, 235)
+            else:
+                pdf.set_font("Helvetica", "", 9)
+                pdf.set_text_color(15, 23, 42)
+                
+            pdf.cell(0, 4.2, str(val))
+            y_item += 4.6
+    else:
+        # Standard Clean placeholder text for One Way trips
+        pdf.set_xy(110, 114)
+        pdf.set_font("Helvetica", "I", 9)
+        pdf.set_text_color(148, 163, 184)
+        pdf.cell(0, 5, "No return service requested for this trip.")
 
-    # --- MINIMALIST CLEAN POLICIES/NOTES BLOCK ---
+    # --- BLOCK 4: IMPORTANT TRAVELER NOTES (Fixed bottom anchor y=137) ---
     pdf.set_fill_color(248, 250, 252)
     pdf.set_draw_color(226, 232, 240)
-    pdf.rect(12, y_next_block, 186, 28, style="FD")
+    pdf.rect(12, 137, 186, 28, style="FD")
     
-    pdf.set_xy(16, y_next_block + 2)
+    pdf.set_xy(16, 139)
     pdf.set_font("Helvetica", "B", 9.5)
     pdf.set_text_color(15, 23, 42)
     pdf.cell(0, 4.5, "IMPORTANT TRAVELER NOTES", ln=1)
     
-    # Render line by line for clean policy styling with inline bolding
-    y_policy = y_next_block + 7.5
+    y_policy = 144.5
     for linea in INFO_POLICIES.split("\n"):
-        pdf.escribir_linea_mixta(16, y_policy, linea, 4.2, pt_size=8.5, c_normal=(100, 116, 139), c_bold=(71, 85, 105))
-        y_policy += 4.6
+        pdf.escribir_linea_mixta(16, y_policy, linea, 4.0, pt_size=8.5, c_normal=(100, 116, 139), c_bold=(71, 85, 105))
+        y_policy += 4.5
     
     # --- PAGE 2: FULL SCREEN MAP ---
     pdf.add_page()
