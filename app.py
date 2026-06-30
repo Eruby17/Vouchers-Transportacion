@@ -6,7 +6,7 @@ import os
 # Configuración de la página en Streamlit
 st.set_page_config(page_title="Generador de Vouchers Casa Dorada", layout="wide", page_icon="📋")
 
-st.title("📋 Creador de Vouchers de Transportación — Casa Dorada")
+st.title("📋 Creador de Vouchers de Transportación - Casa Dorada")
 st.write("Completa los datos del servicio para generar el archivo PDF de dos páginas.")
 
 # --- ARCHIVOS ESTÁTICOS ---
@@ -128,8 +128,8 @@ class VoucherPDF(FPDF):
             # Saludo Amistoso y Personalizado (Derecha)
             self.set_xy(100, 14)
             self.set_font("Helvetica", "B", 16)
-            self.set_text_color(26, 54, 93) # Azul corporativo elegante
-            self.cell(0, 8, f"¡Hola, {nombre_huesped}!", ln=1, align="R")
+            self.set_text_color(26, 54, 93) 
+            self.cell(0, 8, f"Hola, {nombre_huesped}!", ln=1, align="R")
             self.ln(12)
 
     def footer(self):
@@ -137,7 +137,8 @@ class VoucherPDF(FPDF):
             self.set_y(-12)
             self.set_font("Helvetica", "I", 8)
             self.set_text_color(140, 140, 140)
-            self.cell(0, 10, "Casa Dorada Resort and Spa — Página 1/2", align="C")
+            # CORREGIDO: Se eliminó el guion Unicode "—" conflictivo
+            self.cell(0, 10, "Casa Dorada Resort and Spa - Pagina 1/2", align="C")
 
 def crear_pdf():
     pdf = VoucherPDF(logo_file=logo_subido)
@@ -149,7 +150,7 @@ def crear_pdf():
     # --- BLOQUE CENTRAL: AIRPORT PROCEDURES & SIGN SPACE ---
     pdf.set_fill_color(245, 247, 250)
     pdf.set_draw_color(218, 226, 236)
-    pdf.rect(12, pdf.get_y(), 186, 38, style="F") # CORREGIDO: Usando 'style' en lugar de 'fill'
+    pdf.rect(12, pdf.get_y(), 186, 38, style="F") 
     
     pdf.set_xy(16, pdf.get_y() + 3)
     pdf.set_font("Helvetica", "B", 10.5)
@@ -165,7 +166,7 @@ def crear_pdf():
     pdf.set_xy(140, pdf.get_y() - 25)
     pdf.set_fill_color(255, 255, 255)
     pdf.set_draw_color(180, 190, 210)
-    pdf.rect(140, pdf.get_y(), 50, 22, style="FD") # CORREGIDO: Usando 'style' en lugar de 'fill'
+    pdf.rect(140, pdf.get_y(), 50, 22, style="FD") 
     pdf.set_y(pdf.get_y() + 6)
     pdf.set_x(140)
     pdf.set_font("Helvetica", "B", 8)
@@ -175,12 +176,12 @@ def crear_pdf():
     pdf.set_font("Helvetica", "I", 7.5)
     pdf.cell(50, 4, "[ Espacio del Letrero ]", ln=1, align="C")
     
-    pdf.set_y(74) # Ajuste de flujo hacia abajo
+    pdf.set_y(74) 
     
     # --- FUNCIÓN REUTILIZABLE PARA TABLAS ESTILO FACTURA ---
     def item_factura(label, valor, alternar_fondo):
         if alternar_fondo:
-            pdf.set_fill_color(248, 250, 252) # Efecto cebra tenue
+            pdf.set_fill_color(248, 250, 252) 
         else:
             pdf.set_fill_color(255, 255, 255)
         
