@@ -353,9 +353,6 @@ def crear_pdf():
 # --- BUTTON ACTION PROCESSING ---
 st.markdown("### Process and Generate")
 
-# Nota informativa sobre cómo forzar la ventana "Guardar como" en el navegador
-st.info("💡 **Tip:** To choose the exact download folder, verify that your browser has the option *'Ask where to save each file before downloading'* enabled.")
-
 if st.button("🚀 Generate PDF Voucher", type="primary", use_container_width=True):
     if not nombre_input:
         st.error("Please enter the guest name.")
