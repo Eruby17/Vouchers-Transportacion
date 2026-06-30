@@ -4,28 +4,41 @@ from fpdf import FPDF
 import os
 
 # Configuración de la página en Streamlit
-st.set_page_config(page_title="Generador de Vouchers Casa Dorada", layout="wide", page_icon="📋")
+st.set_page_config(page_title="Generador de Vouchers Corporate Travel Alliance", layout="wide", page_icon="📋")
 
-st.title("📋 Creador de Vouchers de Transportación - Casa Dorada")
+st.title("📋 Creador de Vouchers de Transportación - Corporate Travel Alliance")
 st.write("Completa los datos del servicio para generar el archivo PDF de dos páginas.")
 
 # --- ARCHIVOS ESTÁTICOS ---
 MAPA_PATH = "Map.png"
+LOGO_DEFAULT_PATH = "logo.jpeg"
+CARTEL_PATH = "cartel.png"
 
 # --- BARRA LATERAL ---
 st.sidebar.header("⚙️ Configuración del Logo")
 logo_subido = st.sidebar.file_uploader("Subir Logo de la Empresa (PNG o JPG)", type=["png", "jpg", "jpeg"])
 
+# Determinar qué logo usar
+logo_a_usar = None
 if logo_subido:
-    st.sidebar.success("✅ Logo cargado para este voucher.")
+    logo_a_usar = logo_subido
+    st.sidebar.success("✅ Usando el logo cargado desde el buscador.")
+elif os.path.exists(LOGO_DEFAULT_PATH):
+    logo_a_usar = LOGO_DEFAULT_PATH
+    st.sidebar.success("✅ 'logo.jpeg' detectado automáticamente en el repositorio.")
 else:
-    st.sidebar.info("ℹ️ El voucher se generará con el espacio de logo en blanco si no subes uno.")
+    st.sidebar.info("ℹ️ El voucher se generará con el espacio de logo en blanco si no subes uno o agregas 'logo.jpeg'.")
 
 st.sidebar.markdown("---")
 if os.path.exists(MAPA_PATH):
     st.sidebar.success("✅ 'Map.png' detectado para la Página 2.")
 else:
-    st.sidebar.warning("⚠️ No se encontró 'Map.png' en la raíz de GitHub.")
+    st.sidebar.warning("⚠️ No se encontró 'Map.png' en la raíz del proyecto.")
+
+if os.path.exists(CARTEL_PATH):
+    st.sidebar.success("✅ 'cartel.png' detectado para la visualización del letrero.")
+else:
+    st.sidebar.warning("⚠️ No se encontró 'cartel.png' en la raíz del proyecto.")
 
 # --- FORMULARIO PRINCIPAL ---
 st.subheader("Datos del Servicio")
@@ -114,44 +127,53 @@ class VoucherPDF(FPDF):
 
     def header(self):
         if self.page_no() == 1:
-            # Espacio para Logo (Izquierda)
+            # Espacio para Logo (Izquierda) - Dimensiones ampliadas a w=55
             if self.logo_file:
-                self.image(self.logo_file, 14, 12, 45)
+                try:
+                    self.image(self.logo_file, 14, 10, 55)
+                except Exception:
+                    self.set_draw_color(14, 165, 233)
+                    self.rect(14, 10, 55, 18)
+                    self.set_xy(14, 16)
+                    self.set_font("Helvetica", "I", 8)
+                    self.set_text_color(100, 116, 139)
+                    self.cell(55, 5, "[ Error cargando Logo ]", align="C")
             else:
-                self.set_draw_color(14, 165, 233) # Bordes turquesa amigables
-                self.rect(14, 12, 45, 15)
-                self.set_xy(14, 17)
+                self.set_draw_color(14, 165, 233)
+                self.rect(14, 10, 55, 18)
+                self.set_xy(14, 16)
                 self.set_font("Helvetica", "I", 8)
                 self.set_text_color(100, 116, 139)
-                self.cell(45, 5, "[ Your Brand Logo ]", align="C")
+                self.cell(55, 5, "[ Corporate Travel Alliance ]", align="C")
 
             # Saludo Emocional Destacado (Derecha)
-            self.set_xy(100, 14)
+            self.set_xy(100, 12)
             self.set_font("Helvetica", "B", 18)
-            self.set_text_color(2, 132, 199) # Azul Turquesa Brillante / Costero
+            self.set_text_color(2, 132, 199) # Azul Turquesa Brillante
             self.cell(0, 8, f"¡Hola, {nombre_huesped}!", ln=1, align="R")
             
+            # Subtítulo personalizado
             self.set_font("Helvetica", "", 10)
             self.set_text_color(100, 116, 139)
-            self.cell(0, 5, "Welcome to your premium transfer service", ln=1, align="R")
-            self.ln(10)
+            self.cell(0, 5, "Somos Corporate Travel Alliance y será un gusto recibirlos", ln=1, align="R")
+            self.ln(12)
 
     def footer(self):
         if self.page_no() == 1:
             self.set_y(-12)
             self.set_font("Helvetica", "I", 8)
             self.set_text_color(148, 163, 184)
-            self.cell(0, 10, "Casa Dorada Resort and Spa - Page 1/2", align="C")
+            self.cell(0, 10, "Corporate Travel Alliance - Page 1/2", align="C")
 
 def crear_pdf():
-    pdf = VoucherPDF(logo_file=logo_subido)
+    pdf = VoucherPDF(logo_file=logo_a_usar)
     pdf.alias_nb_pages()
     
     # --- PÁGINA 1: TARJETA DE BIENVENIDA ---
     pdf.add_page()
     
-    # --- BLOQUE CENTRAL: BIENVENIDA AL AEROPUERTO (MÁS VISTOSO) ---
-    pdf.set_fill_color(240, 249, 255) # Fondo azul cielo suave
+    # --- BLOQUE CENTRAL: BIENVENIDA AL AEROPUERTO ---
+    pdf.set_fill_color(240, 249, 255)
     pdf.rect(12, pdf.get_y(), 186, 36, style="F")
     
     pdf.set_xy(16, pdf.get_y() + 3)
@@ -164,45 +186,56 @@ def crear_pdf():
     pdf.set_text_color(51, 65, 85)
     pdf.multi_cell(115, 5.2, INFO_ARRIVALS, border=0, align="L")
     
-    # Cuadro del Letrero (Sign Box) con diseño amigable
-    pdf.set_xy(140, pdf.get_y() - 25)
-    pdf.set_fill_color(255, 255, 255)
-    pdf.set_draw_color(14, 165, 233)
-    pdf.rect(140, pdf.get_y(), 50, 20, style="FD") 
-    pdf.set_y(pdf.get_y() + 5)
-    pdf.set_x(140)
-    pdf.set_font("Helvetica", "B", 8)
-    pdf.set_text_color(2, 132, 199)
-    pdf.cell(50, 4, "TRANSPORTATION SIGN", ln=1, align="C")
-    pdf.set_x(140)
-    pdf.set_font("Helvetica", "I", 8)
-    pdf.set_text_color(100, 116, 139)
-    pdf.cell(50, 4, "[ Official Logo Here ]", ln=1, align="C")
+    # Cuadro del Letrero
+    y_actual = pdf.get_y()
+    if os.path.exists(CARTEL_PATH):
+        try:
+            pdf.image(CARTEL_PATH, x=142, y=y_actual - 26, w=46, h=23)
+        except Exception:
+            pdf.set_xy(140, y_actual - 25)
+            pdf.set_fill_color(255, 255, 255)
+            pdf.set_draw_color(14, 165, 233)
+            pdf.rect(140, y_actual - 25, 50, 20, style="FD") 
+            pdf.set_xy(140, y_actual - 17)
+            pdf.set_font("Helvetica", "B", 8)
+            pdf.set_text_color(2, 132, 199)
+            pdf.cell(50, 4, "[ Error en cartel.png ]", ln=1, align="C")
+    else:
+        pdf.set_xy(140, y_actual - 25)
+        pdf.set_fill_color(255, 255, 255)
+        pdf.set_draw_color(14, 165, 233)
+        pdf.rect(140, y_actual - 25, 50, 20, style="FD") 
+        pdf.set_xy(140, y_actual - 20)
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.set_text_color(2, 132, 199)
+        pdf.cell(50, 4, "TRANSPORTATION SIGN", ln=1, align="C")
+        pdf.set_x(140)
+        pdf.set_font("Helvetica", "I", 8)
+        pdf.set_text_color(100, 116, 139)
+        pdf.cell(50, 4, "[ Official Logo Here ]", ln=1, align="C")
     
-    pdf.set_y(74) # Resetear flujo de coordenadas hacia abajo
+    pdf.set_y(74)
     
-    # --- DISEÑO DE TARJETAS DE INFORMACIÓN (SIN LOOK DE FACTURA) ---
+    # --- DISEÑO DE TARJETAS DE INFORMACIÓN ---
     def crear_tarjeta_datos(titulo_seccion, datos_dict):
-        pdf.set_fill_color(2, 132, 199) # Encabezado de la tarjeta
+        pdf.set_fill_color(2, 132, 199)
         pdf.set_font("Helvetica", "B", 9.5)
         pdf.set_text_color(255, 255, 255)
-        pdf.cell(0, 7, f"  {titulo_seccion}", ln=1, fill=True)
+        pdf.cell(0, 7, f"   {titulo_seccion}", ln=1, fill=True)
         
-        # Cuerpo de la tarjeta con fondo blanco limpio
         pdf.set_fill_color(255, 255, 255)
-        pdf.set_draw_color(241, 245, 249) # Bordes interiores sumamente sutiles
+        pdf.set_draw_color(241, 245, 249)
         
         for key, val in datos_dict.items():
             pdf.set_font("Helvetica", "B", 9.5)
-            pdf.set_text_color(100, 116, 139) # Etiquetas en gris suave
-            pdf.cell(65, 8, f"  {key}", border="B", fill=True)
+            pdf.set_text_color(100, 116, 139)
+            pdf.cell(65, 8, f"   {key}", border="B", fill=True)
             
             pdf.set_font("Helvetica", "", 10)
-            pdf.set_text_color(15, 23, 42) # Valores en negro elegante
+            pdf.set_text_color(15, 23, 42)
             pdf.cell(0, 8, str(val), border="B", ln=1, fill=True)
         pdf.ln(4)
 
-    # Datos Bloque 1
     datos_servicio = {
         "Confirmation Number:": confirmacion,
         "Transfer Type / Servicio:": "Round Trip (Regreso Incluido)" if tipo_viaje == "Round Trip" else "One Way (Solo Llegada)",
@@ -213,7 +246,6 @@ def crear_pdf():
         
     crear_tarjeta_datos("TRIP SUMMARY", datos_servicio)
 
-    # Datos Bloque 2
     datos_llegada = {
         "Arrival Date:": fecha_llegada.strftime('%B %d, %Y'),
         "Flight & Airline:": vuelo_llegada_completo,
@@ -221,7 +253,6 @@ def crear_pdf():
     }
     crear_tarjeta_datos("ARRIVING DETAILS", datos_llegada)
     
-    # Datos Bloque 3 (Si aplica)
     if tipo_viaje == "Round Trip":
         datos_salida = {
             "Departure Date:": fecha_salida.strftime('%B %d, %Y'),
@@ -231,8 +262,8 @@ def crear_pdf():
         }
         crear_tarjeta_datos("RETURNING DETAILS", datos_salida)
     
-    # --- BLOQUE DE NOTAS Y ASISTENCIA AL PIE (AMIGABLE) ---
-    pdf.set_fill_color(254, 243, 199) # Color arena/crema cálido, no agresivo
+    # --- BLOQUE DE NOTAS Y ASISTENCIA ---
+    pdf.set_fill_color(254, 243, 199)
     pdf.set_draw_color(252, 211, 77)
     pdf.rect(12, pdf.get_y(), 186, 24, style="F")
     
@@ -246,9 +277,8 @@ def crear_pdf():
     pdf.set_text_color(120, 53, 4)
     pdf.multi_cell(178, 4, INFO_POLICIES, border=0, align="L")
     
-    # --- PÁGINA 2: MAPA COMPLETO A SANGRE ---
+    # --- PÁGINA 2: MAPA COMPLETO ---
     pdf.add_page()
-    
     if os.path.exists(MAPA_PATH):
         pdf.set_auto_page_break(False, margin=0)
         pdf.image(MAPA_PATH, x=0, y=0, w=210, h=297)
