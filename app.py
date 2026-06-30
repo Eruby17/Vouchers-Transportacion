@@ -2,7 +2,6 @@ import streamlit as st
 import datetime
 from fpdf import FPDF
 import os
-import pandas as pd
 
 # Streamlit Page Configuration
 st.set_page_config(page_title="Corporate Travel Alliance Voucher Generator", layout="centered", page_icon="📋")
@@ -10,26 +9,10 @@ st.set_page_config(page_title="Corporate Travel Alliance Voucher Generator", lay
 st.title("📋 Transportation Voucher Creator")
 st.write("Complete the service details to generate the professional executive PDF voucher.")
 
-# --- STATIC FILES & DATA LOGGING ---
+# --- STATIC FILES ---
 MAPA_PATH = "Map.png"
 LOGO_DEFAULT_PATH = "logo.jpeg"
 CARTEL_PATH = "cartel.png"
-EXCEL_LOG_PATH = "daily_vouchers_log.xlsx"
-
-def registrar_en_excel(datos):
-    columnas = [
-        "Log Date", "Confirmation Number", "Guest Name", "Service Type", 
-        "Adults", "Children", "Car Seats", "Arrival Date", "Arrival Flight", "Arrival Time",
-        "Departure Date", "Departure Flight", "Departure Time", "Hotel Pickup Time"
-    ]
-    if os.path.exists(EXCEL_LOG_PATH):
-        df_historico = pd.read_excel(EXCEL_LOG_PATH)
-    else:
-        df_historico = pd.DataFrame(columns=columnas)
-    
-    nuevo_registro = pd.DataFrame([datos], columns=columnas)
-    df_actualizado = pd.concat([df_historico, nuevo_registro], ignore_index=True)
-    df_actualizado.to_excel(EXCEL_LOG_PATH, index=False)
 
 # Automatically determine which logo to use
 logo_a_usar = LOGO_DEFAULT_PATH if os.path.exists(LOGO_DEFAULT_PATH) else None
@@ -367,25 +350,7 @@ if st.button("🚀 Generate PDF Voucher", type="primary", use_container_width=Tr
             pdf_raw = crear_pdf()
             pdf_data = bytes(pdf_raw, 'latin-1') 
             
-            nuevo_log = {
-                "Log Date": datetime.date.today().strftime('%Y-%m-%d'),
-                "Confirmation Number": confirmacion,
-                "Guest Name": nombre_huesped,
-                "Service Type": "Round Trip" if tipo_viaje == "Round Trip" else "One Way",
-                "Adults": adultos,
-                "Children": ninos,
-                "Car Seats": "Yes" if requiere_car_seats else "No",
-                "Arrival Date": fecha_llegada.strftime('%Y-%m-%d'),
-                "Arrival Flight": vuelo_llegada_completo,
-                "Arrival Time": hora_llegada.strftime('%I:%M %p'),
-                "Departure Date": fecha_salida.strftime('%Y-%m-%d') if fecha_salida else "N/A",
-                "Departure Flight": vuelo_salida_completo if tipo_viaje == "Round Trip" else "N/A",
-                "Departure Time": hora_salida.strftime('%I:%M %p') if tipo_viaje == "Round Trip" else "N/A",
-                "Hotel Pickup Time": hora_pickup.strftime('%I:%M %p') if tipo_viaje == "Round Trip" else "N/A"
-            }
-            registrar_en_excel(nuevo_log)
-            
-            st.success("Voucher successfully generated and saved to the daily log!")
+            st.success("Voucher successfully generated!")
             
             tag_viaje = "Roundtrip" if tipo_viaje == "Round Trip" else "One Way"
             nombre_archivo_pdf = f"{tag_viaje} Transportation voucher- {confirmacion}- {nombre_huesped}.pdf"
@@ -399,29 +364,3 @@ if st.button("🚀 Generate PDF Voucher", type="primary", use_container_width=Tr
             )
         except Exception as e:
             st.error(f"Technical error during PDF compilation: {e}")
-
-# --- SECCIÓN ADMINISTRATIVA HISTÓRICA ---
-st.markdown("---")
-st.subheader("📊 Daily Admin Log")
-st.write("Review the history of vouchers generated and download the summary spreadsheet.")
-
-if os.path.exists(EXCEL_LOG_PATH):
-    df_mostrar = pd.read_excel(EXCEL_LOG_PATH)
-    hoy_str = datetime.date.today().strftime('%Y-%m-%d')
-    df_hoy = df_mostrar[df_mostrar["Log Date"] == hoy_str]
-    
-    if not df_hoy.empty:
-        st.dataframe(df_hoy, use_container_width=True)
-    else:
-        st.info("No vouchers have been registered today yet.")
-        
-    with open(EXCEL_LOG_PATH, "rb") as excel_file:
-        st.download_button(
-            label="📥 Download Daily Log (Excel)",
-            data=excel_file,
-            file_name=f"Vouchers_Log_{datetime.date.today().strftime('%Y-%m-%d')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        )
-else:
-    st.info("No logs found. The spreadsheet will be created as soon as you generate your first voucher.")
