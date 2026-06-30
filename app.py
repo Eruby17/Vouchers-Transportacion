@@ -3,7 +3,7 @@ import datetime
 from fpdf import FPDF
 import os
 
-# Configuración de la página en Streamlit (Layout centrado al quitar la barra lateral)
+# Configuración de la página en Streamlit
 st.set_page_config(page_title="Generador de Vouchers Corporate Travel Alliance", layout="centered", page_icon="📋")
 
 st.title("📋 Creador de Vouchers de Transportación")
@@ -14,10 +14,9 @@ MAPA_PATH = "Map.png"
 LOGO_DEFAULT_PATH = "logo.jpeg"
 CARTEL_PATH = "cartel.png"
 
-# Determinar automáticamente qué logo usar sin usar la barra lateral
-logo_a_usar = None
-if os.path.exists(LOGO_DEFAULT_PATH):
-    logo_a_usar = LOGO_DEFAULT_PATH
+# Determinar automáticamente qué logo usar
+logo_a_usar = LOGO_DEFAULT_PATH if os.path.exists(LOGO_DEFAULT_PATH) else None
+if logo_a_usar:
     st.success("✅ Logotipo 'logo.jpeg' detectado y cargado automáticamente.")
 else:
     st.info("ℹ️ El voucher se generará con el espacio de logo en blanco (agrega 'logo.jpeg' en la raíz para activarlo).")
@@ -25,37 +24,44 @@ else:
 # --- FORMULARIO PRINCIPAL ---
 st.subheader("Datos del Servicio")
 
-# Selección de Tipo de Viaje
+# Selección de Tipo de Viaje estilizado
 tipo_viaje = st.radio("Tipo de Servicio / Service Type", ["One Way (Arrival Only)", "Round Trip"], horizontal=True)
 
-st.markdown("### 🛬 Arrival Information")
-col1, col2, col3 = st.columns(3)
+# Listas de configuración para los selectores de tiempo y aerolíneas
+lista_aerolineas = ["Alaska Airlines", "American Airlines", "Southwest Airlines", "Delta Airlines", "Aeroméxico", "WestJet Airlines"]
+horas_lista = [f"{i:02d}" for i in range(24)]
+minutos_lista = [f"{i:02d}" for i in range(0, 60, 5)] # Intervalos de 5 minutos para mayor rapidez
 
-# Aerolíneas solicitadas
-lista_aerolineas = [
-    "Alaska Airlines", 
-    "American Airlines", 
-    "Southwest Airlines", 
-    "Delta Airlines", 
-    "Aeroméxico", 
-    "WestJet Airlines"
-]
+# Crear pestañas para organizar mejor la información visualmente
+if tipo_viaje == "Round Trip":
+    tab1, tab2 = st.tabs(["🛬 Arrival Information", "🛫 Departure Information"])
+else:
+    tab1 = st.tabs(["🛬 Arrival Information"])[0]
 
-with col1:
-    nombre_input = st.text_input("Guest Name (Puedes pegar en MAYÚSCULAS)", placeholder="Ej: ALFREDO RIVERA")
-    nombre_huesped = nombre_input.strip().title()
-    fecha_llegada = st.date_input("Arrival Date", datetime.date.today())
+with tab1:
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        nombre_input = st.text_input("Guest Name (Puedes pegar en MAYÚSCULAS)", placeholder="Ej: ALFREDO RIVERA")
+        nombre_huesped = nombre_input.strip().title()
+        fecha_llegada = st.date_input("Arrival Date", datetime.date.today())
+    
+    with col2:
+        aerolinea_llegada = st.selectbox("Arrival Airline", lista_aerolineas, key="air_arr")
+        num_vuelo_llegada = st.text_input("Arrival Flight Number", placeholder="Ej: 2468", key="num_arr")
+        
+        st.write("Estimated Time of Arrival (ETA)")
+        c_hr, c_min = st.columns(2)
+        with c_hr:
+            h_arr = st.selectbox("Hora", horas_lista, index=12, key="h_arr_sel")
+        with c_min:
+            m_arr = st.selectbox("Min", minutos_lista, index=0, key="m_arr_sel")
+        hora_llegada = datetime.time(int(h_arr), int(m_arr))
 
-with col2:
-    aerolinea_llegada = st.selectbox("Arrival Airline", lista_aerolineas, key="air_arr")
-    num_vuelo_llegada = st.text_input("Arrival Flight Number", placeholder="Ej: 2468", key="num_arr")
-    hora_llegada = st.time_input("Estimated Time of Arrival (ETA)", datetime.time(12, 0), step=60)
-
-with col3:
-    confirmacion = st.text_input("Confirmation Number", placeholder="Ej: CD-98765").upper()
-    adultos = st.number_input("Adultos / Adults", min_value=1, value=2, step=1)
-    ninos = st.number_input("Niños / Children", min_value=0, value=0, step=1)
-    requiere_car_seats = st.checkbox("¿Requiere Car Seats?")
+    with col3:
+        confirmacion = st.text_input("Confirmation Number", placeholder="Ej: CD-98765").upper()
+        adultos = st.number_input("Adultos / Adults", min_value=1, value=2, step=1)
+        ninos = st.number_input("Niños / Children", min_value=0, value=0, step=1)
+        requiere_car_seats = st.checkbox("¿Requiere Car Seats?", key="cs_check")
 
 vuelo_llegada_completo = f"{aerolinea_llegada} {num_vuelo_llegada}".strip()
 
@@ -66,33 +72,42 @@ hora_salida = None
 hora_pickup = None
 
 if tipo_viaje == "Round Trip":
-    st.markdown("---")
-    st.markdown("### 🛫 Departure Information")
-    col_dep1, col_dep2, col_dep3 = st.columns(3)
-    
-    with col_dep1:
-        fecha_salida = st.date_input("Departure Date", datetime.date.today() + datetime.timedelta(days=5))
-        aerolinea_salida = st.selectbox("Departure Airline", lista_aerolineas, key="air_dep")
+    with tab2:
+        col_dep1, col_dep2, col_dep3 = st.columns(3)
+        
+        with col_dep1:
+            fecha_salida = st.date_input("Departure Date", datetime.date.today() + datetime.timedelta(days=5))
+            aerolinea_salida = st.selectbox("Departure Airline", lista_aerolineas, key="air_dep")
 
-    with col_dep2:
-        num_vuelo_salida = st.text_input("Departure Flight Number", placeholder="Ej: 1357", key="num_dep")
-        vuelo_salida_completo = f"{aerolinea_salida} {num_vuelo_salida}".strip()
-        hora_salida = st.time_input("Flight Departure Time", datetime.time(15, 0), step=60)
+        with col_dep2:
+            num_vuelo_salida = st.text_input("Departure Flight Number", placeholder="Ej: 1357", key="num_dep")
+            vuelo_salida_completo = f"{aerolinea_salida} {num_vuelo_salida}".strip()
+            
+            st.write("Flight Departure Time")
+            c_hr_d, c_min_d = st.columns(2)
+            with c_hr_d:
+                h_dep = st.selectbox("Hora", horas_lista, index=15, key="h_dep_sel")
+            with c_min_d:
+                m_dep = st.selectbox("Min", minutos_lista, index=0, key="m_dep_sel")
+            hora_salida = datetime.time(int(h_dep), int(m_dep))
 
-    with col_dep3:
-        dt_vuelo = datetime.datetime.combine(datetime.date.today(), hora_salida)
-        dt_pickup_default = dt_vuelo - datetime.timedelta(hours=3, minutes=30)
-        hora_pickup = st.time_input("Scheduled Pick-up Time (Auto-calculated)", dt_pickup_default.time(), step=60)
+        with col_dep3:
+            # Cálculo automático por defecto (3.5 horas antes)
+            dt_vuelo = datetime.datetime.combine(datetime.date.today(), hora_salida)
+            dt_pickup_default = dt_vuelo - datetime.timedelta(hours=3, minutes=30)
+            
+            st.write("Scheduled Pick-up Time")
+            c_hr_p, c_min_p = st.columns(2)
+            with c_hr_p:
+                h_pick = st.selectbox("Hora", horas_lista, index=horas_lista.index(f"{dt_pickup_default.hour:02d}"), key="h_pick_sel")
+            with c_min_p:
+                # Buscar el índice más cercano en saltos de 5 minutos
+                min_cercano = str(int(5 * round(dt_pickup_default.minute / 5))).zfill(2)
+                if min_cercano == "60": min_cercano = "55"
+                m_pick = st.selectbox("Min", minutos_lista, index=min_lista_idx := minutos_lista.index(min_cercano), key="m_pick_sel")
+            hora_pickup = datetime.time(int(h_pick), int(m_pick))
 
 st.markdown("---")
-
-# --- TEXTOS OFICIALES RECONFIGURADOS ---
-INFO_ARRIVALS = (
-    "1. After passing Mexican Immigration, claim luggage and clear Customs.\n"
-    "2. PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.\n"
-    "3. Walk outside: Our official staff is waiting for you under UMBRELLA #4.\n"
-    "4. Look for the recognizable transportation sign shown on the right."
-)
 
 INFO_POLICIES = (
     "Modifications: Contact us at reservations@casadorada.com or miriam.cham@casadorada.com at least 24 hours before your service.\n"
@@ -101,7 +116,7 @@ INFO_POLICIES = (
     "Toll Free Assistance: 1-866-448-0151 | Monday to Friday from 8:00 a.m. to 07:00 p.m. (PST)"
 )
 
-# --- CLASE PDF ---
+# --- CLASE PDF CON SOPORTE PARA NEGRITAS INTERNAS ---
 class VoucherPDF(FPDF):
     def __init__(self, logo_file=None):
         super().__init__(orientation='P', unit='mm', format='A4')
@@ -109,37 +124,29 @@ class VoucherPDF(FPDF):
 
     def header(self):
         if self.page_no() == 1:
-            # Centrado del logo en A4: (210 - ancho_logo) / 2 -> (210 - 85) / 2 = 62.5
-            # Logo en la parte superior (y=6) y más grande (w=85)
             if self.logo_file:
-                try:
-                    self.image(self.logo_file, 62.5, 6, 85)
-                except Exception:
-                    self.set_draw_color(14, 165, 233)
-                    self.rect(62.5, 6, 85, 26)
-                    self.set_xy(62.5, 16)
-                    self.set_font("Helvetica", "I", 9)
-                    self.set_text_color(100, 116, 139)
-                    self.cell(85, 5, "[ Error loading logo ]", align="C")
+                try: self.image(self.logo_file, 62.5, 6, 85)
+                except Exception: self.placeholder_logo()
             else:
-                self.set_draw_color(14, 165, 233)
-                self.rect(62.5, 6, 85, 26)
-                self.set_xy(62.5, 16)
-                self.set_font("Helvetica", "I", 9)
-                self.set_text_color(100, 116, 139)
-                self.cell(85, 5, "[ Corporate Travel Alliance ]", align="C")
+                self.placeholder_logo()
 
-            # Espacio libre amplio debajo del logo: y=56
             self.set_xy(14, 56)
             self.set_font("Helvetica", "B", 18)
             self.set_text_color(2, 132, 199)
             self.cell(0, 8, f"Hola, {nombre_huesped}!", ln=1, align="L")
             
-            # Subtítulo en inglés
             self.set_font("Helvetica", "", 10)
             self.set_text_color(100, 116, 139)
             self.cell(0, 5, "We are Corporate Travel Alliance and it will be a pleasure to welcome you.", ln=1, align="L")
             self.ln(5)
+
+    def placeholder_logo(self):
+        self.set_draw_color(14, 165, 233)
+        self.rect(62.5, 6, 85, 26)
+        self.set_xy(62.5, 16)
+        self.set_font("Helvetica", "I", 9)
+        self.set_text_color(100, 116, 139)
+        self.cell(85, 5, "[ Corporate Travel Alliance ]", align="C")
 
     def footer(self):
         if self.page_no() == 1:
@@ -148,14 +155,31 @@ class VoucherPDF(FPDF):
             self.set_text_color(148, 163, 184)
             self.cell(0, 10, "Corporate Travel Alliance - Page 1/2", align="C")
 
+    # Función auxiliar para escribir texto mixto (Normal y Negrita) línea por línea
+    def escribir_linea_mixta(self, x, y, texto_linea, alto_celda):
+        self.set_xy(x, y)
+        segmentos = texto_linea.split("**")
+        es_negrita = False
+        
+        for segmento in segmentos:
+            if es_negrita:
+                self.set_font("Helvetica", "B", 9.5)
+                self.set_text_color(15, 23, 42) # Resaltado un poco más oscuro
+            else:
+                self.set_font("Helvetica", "", 9.5)
+                self.set_text_color(51, 65, 85)
+            
+            ancho_texto = self.get_string_width(segmento)
+            self.cell(ancho_texto, alto_celda, segmento, border=0)
+            self.set_x(self.get_x())
+            es_negrita = not es_negrita
+
 def crear_pdf():
     pdf = VoucherPDF(logo_file=logo_a_usar)
     pdf.alias_nb_pages()
-    
-    # --- PÁGINA 1: TARJETA DE BIENVENIDA ---
     pdf.add_page()
     
-    # --- BLOQUE CENTRAL: PROCEDIMIENTOS DEL AEROPUERTO (Baja a y=78) ---
+    # --- BLOQUE CENTRAL: PROCEDIMIENTOS DEL AEROPUERTO ---
     pdf.set_y(78)
     pdf.set_fill_color(240, 249, 255)
     pdf.rect(12, pdf.get_y(), 186, 38, style="F")
@@ -165,39 +189,27 @@ def crear_pdf():
     pdf.set_text_color(2, 132, 199)
     pdf.cell(0, 5, "AIRPORT PROCEDURES - HOW TO FIND US", ln=1)
     
-    pdf.set_x(16)
-    pdf.set_font("Helvetica", "", 9.5)
-    pdf.set_text_color(51, 65, 85)
-    pdf.multi_cell(115, 5.2, INFO_ARRIVALS, border=0, align="L")
+    # Renderizado manual con soporte para las negritas pedidas
+    lineas_arrivals = [
+        "1. After passing Mexican Immigration, claim luggage and clear Customs.",
+        "2. **PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.**",
+        "3. Walk outside: Our official staff is waiting for you **UNDER UMBRELLA #4**.",
+        "4. Look for the recognizable transportation sign shown on the right."
+    ]
     
-    # Letrero proporcional automático (h=0) sin distorsiones
+    y_linea = pdf.get_y() + 1
+    for linea in lineas_arrivals:
+        pdf.escribir_linea_mixta(16, y_linea, linea, 5.2)
+        y_linea += 5.2
+        
     y_actual = pdf.get_y()
     if os.path.exists(CARTEL_PATH):
-        try:
-            pdf.image(CARTEL_PATH, x=144, y=y_actual - 26, w=45, h=0)
-        except Exception:
-            pdf.set_xy(140, y_actual - 25)
-            pdf.set_fill_color(255, 255, 255)
-            pdf.set_draw_color(14, 165, 233)
-            pdf.rect(140, y_actual - 25, 50, 20, style="FD") 
-            pdf.set_xy(140, y_actual - 17)
-            pdf.set_font("Helvetica", "B", 8)
-            pdf.set_text_color(2, 132, 199)
-            pdf.cell(50, 4, "[ Error en cartel.png ]", ln=1, align="C")
-    else:
-        pdf.set_xy(140, y_actual - 25)
-        pdf.set_fill_color(255, 255, 255)
-        pdf.set_draw_color(14, 165, 233)
-        pdf.rect(140, y_actual - 25, 50, 20, style="FD") 
-        pdf.set_xy(140, y_actual - 20)
-        pdf.set_font("Helvetica", "B", 8)
-        pdf.set_text_color(2, 132, 199)
-        pdf.cell(50, 4, "TRANSPORTATION SIGN", ln=1, align="C")
-    
-    # Tarjetas de información distribuidas hacia el final (y=124)
+        try: pdf.image(CARTEL_PATH, x=144, y=79, w=45, h=0)
+        except Exception: pass
+
+    # Tarjetas de información distribuidas hacia el final
     pdf.set_y(124)
     
-    # --- DISEÑO DE TARJETAS DE INFORMACIÓN (Fila de 8.5mm y separación de 8mm) ---
     def crear_tarjeta_datos(titulo_seccion, datos_dict):
         pdf.set_fill_color(2, 132, 199)
         pdf.set_font("Helvetica", "B", 9.5)
@@ -272,7 +284,8 @@ def crear_pdf():
     return pdf.output()
 
 # --- ACCIÓN DEL BOTÓN ---
-if st.button("🚀 Generar Voucher PDF", type="primary"):
+st.markdown("### Enviar y Procesar")
+if st.button("🚀 Generar Voucher PDF", type="primary", use_container_width=True):
     if not nombre_input:
         st.error("Por favor ingresa el nombre del huésped.")
     elif not confirmacion or not num_vuelo_llegada:
@@ -288,7 +301,8 @@ if st.button("🚀 Generar Voucher PDF", type="primary"):
                 label="📥 Descargar Voucher (PDF)",
                 data=pdf_data,
                 file_name=f"Voucher_{confirmacion}.pdf",
-                mime="application/pdf"
+                mime="application/pdf",
+                use_container_width=True
             )
         except Exception as e:
             st.error(f"Error técnico al compilar el PDF: {e}")
