@@ -127,36 +127,36 @@ class VoucherPDF(FPDF):
 
     def header(self):
         if self.page_no() == 1:
-            # Espacio para Logo (Izquierda) - Dimensiones ampliadas a w=55
+            # Colocar el Logo en el CENTRO y GRANDE (ancho 70mm, centrado horizontalmente en A4)
             if self.logo_file:
                 try:
-                    self.image(self.logo_file, 14, 10, 55)
+                    self.image(self.logo_file, 70, 10, 70)
                 except Exception:
                     self.set_draw_color(14, 165, 233)
-                    self.rect(14, 10, 55, 18)
-                    self.set_xy(14, 16)
-                    self.set_font("Helvetica", "I", 8)
+                    self.rect(70, 10, 70, 22)
+                    self.set_xy(70, 18)
+                    self.set_font("Helvetica", "I", 9)
                     self.set_text_color(100, 116, 139)
-                    self.cell(55, 5, "[ Error cargando Logo ]", align="C")
+                    self.cell(70, 5, "[ Error loading logo ]", align="C")
             else:
                 self.set_draw_color(14, 165, 233)
-                self.rect(14, 10, 55, 18)
-                self.set_xy(14, 16)
-                self.set_font("Helvetica", "I", 8)
+                self.rect(70, 10, 70, 22)
+                self.set_xy(70, 18)
+                self.set_font("Helvetica", "I", 9)
                 self.set_text_color(100, 116, 139)
-                self.cell(55, 5, "[ Corporate Travel Alliance ]", align="C")
+                self.cell(70, 5, "[ Corporate Travel Alliance ]", align="C")
 
-            # Saludo Emocional Destacado (Derecha)
-            self.set_xy(100, 12)
+            # Saludo en la parte IZQUIERDA y en INGLÉS
+            self.set_xy(14, 36)
             self.set_font("Helvetica", "B", 18)
-            self.set_text_color(2, 132, 199) # Azul Turquesa Brillante
-            self.cell(0, 8, f"¡Hola, {nombre_huesped}!", ln=1, align="R")
+            self.set_text_color(2, 132, 199)
+            self.cell(0, 8, f"Hello, {nombre_huesped}!", ln=1, align="L")
             
-            # Subtítulo personalizado
+            # Subtítulo en la parte izquierda y en inglés
             self.set_font("Helvetica", "", 10)
             self.set_text_color(100, 116, 139)
-            self.cell(0, 5, "Somos Corporate Travel Alliance y será un gusto recibirlos", ln=1, align="R")
-            self.ln(12)
+            self.cell(0, 5, "We are Corporate Travel Alliance and it will be a pleasure to welcome you.", ln=1, align="L")
+            self.ln(5)
 
     def footer(self):
         if self.page_no() == 1:
@@ -172,7 +172,8 @@ def crear_pdf():
     # --- PÁGINA 1: TARJETA DE BIENVENIDA ---
     pdf.add_page()
     
-    # --- BLOQUE CENTRAL: BIENVENIDA AL AEROPUERTO ---
+    # --- BLOQUE CENTRAL: BIENVENIDA AL AEROPUERTO (RECORRIDO HACIA ABAJO -> y=54) ---
+    pdf.set_y(54)
     pdf.set_fill_color(240, 249, 255)
     pdf.rect(12, pdf.get_y(), 186, 36, style="F")
     
@@ -186,7 +187,7 @@ def crear_pdf():
     pdf.set_text_color(51, 65, 85)
     pdf.multi_cell(115, 5.2, INFO_ARRIVALS, border=0, align="L")
     
-    # Cuadro del Letrero
+    # Cuadro del Letrero (Sign Box)
     y_actual = pdf.get_y()
     if os.path.exists(CARTEL_PATH):
         try:
@@ -214,7 +215,7 @@ def crear_pdf():
         pdf.set_text_color(100, 116, 139)
         pdf.cell(50, 4, "[ Official Logo Here ]", ln=1, align="C")
     
-    pdf.set_y(74)
+    pdf.set_y(94) # Flujo recorrido hacia abajo
     
     # --- DISEÑO DE TARJETAS DE INFORMACIÓN ---
     def crear_tarjeta_datos(titulo_seccion, datos_dict):
