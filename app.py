@@ -93,16 +93,17 @@ st.markdown("---")
 
 # --- TEXTOS OFICIALES RECONFIGURADOS ---
 INFO_ARRIVALS = (
-    "After passing Mexican Immigration, claim checked luggage and clear Customs. "
-    "PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS (they will try to sell you unauthorized transportation). "
-    "Our official staff will be waiting for you outside under UMBRELLA #4, holding the company sign."
+    "1. After passing Mexican Immigration, claim luggage and clear Customs.\n"
+    "2. PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS inside the terminal.\n"
+    "3. Walk outside: Our official staff is waiting for you under UMBRELLA #4.\n"
+    "4. Look for the recognizable transportation sign shown on the right."
 )
 
 INFO_POLICIES = (
-    "- For any modifications, contact us at reservations@casadorada.com at least 24 hours in advance.\n"
-    "- For departures, the driver will wait a maximum of 10 minutes from the scheduled pick-up time.\n"
-    "- This service is personal, non-transferable, and valid only for the registered guest name.\n"
-    "Reservations Toll Free: 1-866-448-0151 | Mon-Fri 8:00 a.m. to 07:00 p.m. (Pacific Time)"
+    "Modifications: Contact us at reservations@casadorada.com at least 24 hours before your service.\n"
+    "Departure Pick-ups: The driver will wait a maximum of 10 minutes after the scheduled time.\n"
+    "Non-Transferable: This official service is valid exclusively for the registered guest name.\n"
+    "Toll Free Assistance: 1-866-448-0151 | Monday to Friday from 8:00 a.m. to 07:00 p.m. (PST)"
 )
 
 # --- CLASE PDF ---
@@ -113,137 +114,139 @@ class VoucherPDF(FPDF):
 
     def header(self):
         if self.page_no() == 1:
-            # Espacio para el Logo de la Compañía (Izquierda)
+            # Espacio para Logo (Izquierda)
             if self.logo_file:
-                self.image(self.logo_file, 12, 12, 45)
+                self.image(self.logo_file, 14, 12, 45)
             else:
-                # Recuadro guía si no se sube logo
-                self.set_draw_color(200, 200, 200)
-                self.rect(12, 12, 45, 15)
-                self.set_xy(12, 17)
+                self.set_draw_color(14, 165, 233) # Bordes turquesa amigables
+                self.rect(14, 12, 45, 15)
+                self.set_xy(14, 17)
                 self.set_font("Helvetica", "I", 8)
-                self.set_text_color(150, 150, 150)
-                self.cell(45, 5, "[ Espacio para Logo ]", align="C")
+                self.set_text_color(100, 116, 139)
+                self.cell(45, 5, "[ Your Brand Logo ]", align="C")
 
-            # Saludo Amistoso y Personalizado (Derecha)
+            # Saludo Emocional Destacado (Derecha)
             self.set_xy(100, 14)
-            self.set_font("Helvetica", "B", 16)
-            self.set_text_color(26, 54, 93) 
-            self.cell(0, 8, f"Hola, {nombre_huesped}!", ln=1, align="R")
-            self.ln(12)
+            self.set_font("Helvetica", "B", 18)
+            self.set_text_color(2, 132, 199) # Azul Turquesa Brillante / Costero
+            self.cell(0, 8, f"¡Hola, {nombre_huesped}!", ln=1, align="R")
+            
+            self.set_font("Helvetica", "", 10)
+            self.set_text_color(100, 116, 139)
+            self.cell(0, 5, "Welcome to your premium transfer service", ln=1, align="R")
+            self.ln(10)
 
     def footer(self):
         if self.page_no() == 1:
             self.set_y(-12)
             self.set_font("Helvetica", "I", 8)
-            self.set_text_color(140, 140, 140)
-            # CORREGIDO: Se eliminó el guion Unicode "—" conflictivo
-            self.cell(0, 10, "Casa Dorada Resort and Spa - Pagina 1/2", align="C")
+            self.set_text_color(148, 163, 184)
+            self.cell(0, 10, "Casa Dorada Resort and Spa - Page 1/2", align="C")
 
 def crear_pdf():
     pdf = VoucherPDF(logo_file=logo_subido)
     pdf.alias_nb_pages()
     
-    # --- PÁGINA 1: FORMATO FACTURA / INVOICE ---
+    # --- PÁGINA 1: TARJETA DE BIENVENIDA ---
     pdf.add_page()
     
-    # --- BLOQUE CENTRAL: AIRPORT PROCEDURES & SIGN SPACE ---
-    pdf.set_fill_color(245, 247, 250)
-    pdf.set_draw_color(218, 226, 236)
-    pdf.rect(12, pdf.get_y(), 186, 38, style="F") 
+    # --- BLOQUE CENTRAL: BIENVENIDA AL AEROPUERTO (MÁS VISTOSO) ---
+    pdf.set_fill_color(240, 249, 255) # Fondo azul cielo suave
+    pdf.rect(12, pdf.get_y(), 186, 36, style="F")
     
     pdf.set_xy(16, pdf.get_y() + 3)
-    pdf.set_font("Helvetica", "B", 10.5)
-    pdf.set_text_color(26, 54, 93)
-    pdf.cell(0, 5, "AIRPORT PROCEDURES FOR YOUR ARRIVAL", ln=1)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(2, 132, 199)
+    pdf.cell(0, 5, "AIRPORT PROCEDURES - HOW TO FIND US", ln=1)
     
     pdf.set_x(16)
-    pdf.set_font("Helvetica", "", 9)
-    pdf.set_text_color(60, 72, 88)
-    pdf.multi_cell(115, 4.5, INFO_ARRIVALS, border=0, align="L")
+    pdf.set_font("Helvetica", "", 9.5)
+    pdf.set_text_color(51, 65, 85)
+    pdf.multi_cell(115, 5.2, INFO_ARRIVALS, border=0, align="L")
     
-    # Cuadro interno para el SIGN de la compañía dentro del bloque
+    # Cuadro del Letrero (Sign Box) con diseño amigable
     pdf.set_xy(140, pdf.get_y() - 25)
     pdf.set_fill_color(255, 255, 255)
-    pdf.set_draw_color(180, 190, 210)
-    pdf.rect(140, pdf.get_y(), 50, 22, style="FD") 
-    pdf.set_y(pdf.get_y() + 6)
+    pdf.set_draw_color(14, 165, 233)
+    pdf.rect(140, pdf.get_y(), 50, 20, style="FD") 
+    pdf.set_y(pdf.get_y() + 5)
     pdf.set_x(140)
     pdf.set_font("Helvetica", "B", 8)
-    pdf.set_text_color(100, 110, 130)
-    pdf.cell(50, 4, "RECOGNIZABLE SIGN / LOGO", ln=1, align="C")
+    pdf.set_text_color(2, 132, 199)
+    pdf.cell(50, 4, "TRANSPORTATION SIGN", ln=1, align="C")
     pdf.set_x(140)
-    pdf.set_font("Helvetica", "I", 7.5)
-    pdf.cell(50, 4, "[ Espacio del Letrero ]", ln=1, align="C")
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.set_text_color(100, 116, 139)
+    pdf.cell(50, 4, "[ Official Logo Here ]", ln=1, align="C")
     
-    pdf.set_y(74) 
+    pdf.set_y(74) # Resetear flujo de coordenadas hacia abajo
     
-    # --- FUNCIÓN REUTILIZABLE PARA TABLAS ESTILO FACTURA ---
-    def item_factura(label, valor, alternar_fondo):
-        if alternar_fondo:
-            pdf.set_fill_color(248, 250, 252) 
-        else:
-            pdf.set_fill_color(255, 255, 255)
-        
-        pdf.set_draw_color(230, 235, 242)
+    # --- DISEÑO DE TARJETAS DE INFORMACIÓN (SIN LOOK DE FACTURA) ---
+    def crear_tarjeta_datos(titulo_seccion, datos_dict):
+        pdf.set_fill_color(2, 132, 199) # Encabezado de la tarjeta
         pdf.set_font("Helvetica", "B", 9.5)
-        pdf.set_text_color(70, 80, 95)
-        pdf.cell(65, 7.5, f"  {label}", border="B", fill=True)
-        pdf.set_font("Helvetica", "", 9.5)
-        pdf.set_text_color(15, 23, 42)
-        pdf.cell(0, 7.5, str(valor), border="B", ln=1, fill=True)
-
-    # --- TABLA 1: DATOS DE CONFIRMACIÓN ---
-    pdf.set_fill_color(26, 54, 93)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(0, 7, "  SERVICE SUMMARY / DATOS DEL SERVICIO", ln=1, fill=True)
-    
-    item_factura("Confirmation Number:", confirmacion, False)
-    item_factura("Service Type / Tipo de Viaje:", "Round Trip" if tipo_viaje == "Round Trip" else "One Way (Arrival Only)", True)
-    item_factura("Passengers / Pasajeros:", f"{adultos} Adults / {ninos} Children", False)
-    if requiere_car_seats:
-        item_factura("Special Requests:", "Car Seat Included", True)
-        
-    pdf.ln(4)
-    
-    # --- TABLA 2: DETALLES DE LLEGADA ---
-    pdf.set_fill_color(26, 54, 93)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(0, 7, "  ARRIVAL DETAILS / INFORMACIÓN DE LLEGADA", ln=1, fill=True)
-    
-    item_factura("Arrival Date:", fecha_llegada.strftime('%B %d, %Y'), False)
-    item_factura("Flight & Airline:", vuelo_llegada_completo, True)
-    item_factura("Estimated Arrival Time (ETA):", f"{hora_llegada.strftime('%H:%M')} HRS", False)
-    
-    pdf.ln(4)
-    
-    # --- TABLA 3: DETALLES DE SALIDA (SI APLICA) ---
-    if tipo_viaje == "Round Trip":
-        pdf.set_fill_color(26, 54, 93)
         pdf.set_text_color(255, 255, 255)
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(0, 7, "  DEPARTURE DETAILS / INFORMACIÓN DE SALIDA", ln=1, fill=True)
+        pdf.cell(0, 7, f"  {titulo_seccion}", ln=1, fill=True)
         
-        item_factura("Departure Date:", fecha_salida.strftime('%B %d, %Y'), False)
-        item_factura("Flight & Airline:", vuelo_salida_completo, True)
-        item_factura("Flight Departure Time:", f"{hora_salida.strftime('%H:%M')} HRS", False)
-        item_factura("Scheduled Pick-up Time:", f"{hora_pickup.strftime('%H:%M')} HRS (From Hotel Lobby)", True)
+        # Cuerpo de la tarjeta con fondo blanco limpio
+        pdf.set_fill_color(255, 255, 255)
+        pdf.set_draw_color(241, 245, 249) # Bordes interiores sumamente sutiles
+        
+        for key, val in datos_dict.items():
+            pdf.set_font("Helvetica", "B", 9.5)
+            pdf.set_text_color(100, 116, 139) # Etiquetas en gris suave
+            pdf.cell(65, 8, f"  {key}", border="B", fill=True)
+            
+            pdf.set_font("Helvetica", "", 10)
+            pdf.set_text_color(15, 23, 42) # Valores en negro elegante
+            pdf.cell(0, 8, str(val), border="B", ln=1, fill=True)
         pdf.ln(4)
+
+    # Datos Bloque 1
+    datos_servicio = {
+        "Confirmation Number:": confirmacion,
+        "Transfer Type / Servicio:": "Round Trip (Regreso Incluido)" if tipo_viaje == "Round Trip" else "One Way (Solo Llegada)",
+        "Guests / Pasajeros:": f"{adultos} Adults / {ninos} Children"
+    }
+    if requiere_car_seats:
+        datos_servicio["Special Add-on:"] = "Complimentary Car Seat Added"
+        
+    crear_tarjeta_datos("TRIP SUMMARY", datos_servicio)
+
+    # Datos Bloque 2
+    datos_llegada = {
+        "Arrival Date:": fecha_llegada.strftime('%B %d, %Y'),
+        "Flight & Airline:": vuelo_llegada_completo,
+        "Estimated Pickup Time (ETA):": f"{hora_llegada.strftime('%H:%M')} HRS"
+    }
+    crear_tarjeta_datos("ARRIVING DETAILS", datos_llegada)
     
-    # --- POLÍTICAS Y TÉRMINOS EN LA BASE ---
-    pdf.set_fill_color(241, 245, 249)
-    pdf.set_draw_color(200, 210, 220)
-    pdf.set_text_color(51, 65, 85)
+    # Datos Bloque 3 (Si aplica)
+    if tipo_viaje == "Round Trip":
+        datos_salida = {
+            "Departure Date:": fecha_salida.strftime('%B %d, %Y'),
+            "Flight & Airline:": vuelo_salida_completo,
+            "Flight Departure Time:": f"{hora_salida.strftime('%H:%M')} HRS",
+            "Hotel Pickup Time:": f"{hora_pickup.strftime('%H:%M')} HRS (Please be at the lobby)"
+        }
+        crear_tarjeta_datos("RETURNING DETAILS", datos_salida)
+    
+    # --- BLOQUE DE NOTAS Y ASISTENCIA AL PIE (AMIGABLE) ---
+    pdf.set_fill_color(254, 243, 199) # Color arena/crema cálido, no agresivo
+    pdf.set_draw_color(252, 211, 77)
+    pdf.rect(12, pdf.get_y(), 186, 24, style="F")
+    
+    pdf.set_xy(16, pdf.get_y() + 2)
     pdf.set_font("Helvetica", "B", 9)
-    pdf.cell(0, 6.5, "  TERMS & IMPORTANT POLICIES", ln=1, fill=True, border="T")
-    pdf.ln(1)
-    pdf.set_font("Helvetica", "", 8)
-    pdf.set_text_color(71, 85, 105)
-    pdf.multi_cell(0, 4, INFO_POLICIES, border=0, align="L")
+    pdf.set_text_color(180, 83, 9)
+    pdf.cell(0, 4.5, "IMPORTANT TRAVELER NOTES", ln=1)
     
-    # --- PÁGINA 2: MAPA A SANGRE (FULL PAGE SIN BORDES NI TEXTO) ---
+    pdf.set_x(16)
+    pdf.set_font("Helvetica", "", 8)
+    pdf.set_text_color(120, 53, 4)
+    pdf.multi_cell(178, 4, INFO_POLICIES, border=0, align="L")
+    
+    # --- PÁGINA 2: MAPA COMPLETO A SANGRE ---
     pdf.add_page()
     
     if os.path.exists(MAPA_PATH):
@@ -251,9 +254,9 @@ def crear_pdf():
         pdf.image(MAPA_PATH, x=0, y=0, w=210, h=297)
         pdf.set_auto_page_break(True, margin=10)
     else:
-        pdf.set_text_color(200, 0, 0)
+        pdf.set_text_color(239, 68, 68)
         pdf.set_font("Helvetica", "B", 12)
-        pdf.cell(0, 20, f"[Error: Archivo '{MAPA_PATH}' requerido para pantalla completa no disponible]", ln=1, align="C")
+        pdf.cell(0, 20, f"[Error: '{MAPA_PATH}' is missing for full screen rendering]", ln=1, align="C")
 
     return pdf.output()
 
