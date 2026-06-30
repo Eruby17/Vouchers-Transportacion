@@ -3,10 +3,10 @@ import datetime
 from fpdf import FPDF
 import os
 
-# Configuración de la página en Streamlit
-st.set_page_config(page_title="Generador de Vouchers Corporate Travel Alliance", layout="wide", page_icon="📋")
+# Configuración de la página en Streamlit (Layout centrado al quitar la barra lateral)
+st.set_page_config(page_title="Generador de Vouchers Corporate Travel Alliance", layout="centered", page_icon="📋")
 
-st.title("📋 Creador de Vouchers de Transportación - Corporate Travel Alliance")
+st.title("📋 Creador de Vouchers de Transportación")
 st.write("Completa los datos del servicio para generar el archivo PDF de dos páginas.")
 
 # --- ARCHIVOS ESTÁTICOS ---
@@ -14,31 +14,13 @@ MAPA_PATH = "Map.png"
 LOGO_DEFAULT_PATH = "logo.jpeg"
 CARTEL_PATH = "cartel.png"
 
-# --- BARRA LATERAL ---
-st.sidebar.header("⚙️ Configuración del Logo")
-logo_subido = st.sidebar.file_uploader("Subir Logo de la Empresa (PNG o JPG)", type=["png", "jpg", "jpeg"])
-
-# Determinar qué logo usar
+# Determinar automáticamente qué logo usar sin usar la barra lateral
 logo_a_usar = None
-if logo_subido:
-    logo_a_usar = logo_subido
-    st.sidebar.success("✅ Usando el logo cargado desde el buscador.")
-elif os.path.exists(LOGO_DEFAULT_PATH):
+if os.path.exists(LOGO_DEFAULT_PATH):
     logo_a_usar = LOGO_DEFAULT_PATH
-    st.sidebar.success("✅ 'logo.jpeg' detectado automáticamente en el repositorio.")
+    st.success("✅ Logotipo 'logo.jpeg' detectado y cargado automáticamente.")
 else:
-    st.sidebar.info("ℹ️ El voucher se generará con el espacio de logo en blanco si no subes uno o agregas 'logo.jpeg'.")
-
-st.sidebar.markdown("---")
-if os.path.exists(MAPA_PATH):
-    st.sidebar.success("✅ 'Map.png' detectado para la Página 2.")
-else:
-    st.sidebar.warning("⚠️ No se encontró 'Map.png' en la raíz del proyecto.")
-
-if os.path.exists(CARTEL_PATH):
-    st.sidebar.success("✅ 'cartel.png' detectado para la visualización del letrero.")
-else:
-    st.sidebar.warning("⚠️ No se encontró 'cartel.png' en la raíz del proyecto.")
+    st.info("ℹ️ El voucher se generará con el espacio de logo en blanco (agrega 'logo.jpeg' en la raíz para activarlo).")
 
 # --- FORMULARIO PRINCIPAL ---
 st.subheader("Datos del Servicio")
@@ -127,32 +109,33 @@ class VoucherPDF(FPDF):
 
     def header(self):
         if self.page_no() == 1:
-            # Colocar el Logo en el CENTRO y GRANDE (ancho 70mm, centrado horizontalmente)
+            # Centrado del logo en A4: (210 - ancho_logo) / 2 -> (210 - 85) / 2 = 62.5
+            # Subir el logo a y=6 y hacerlo más grande (w=85)
             if self.logo_file:
                 try:
-                    self.image(self.logo_file, 70, 10, 70)
+                    self.image(self.logo_file, 62.5, 6, 85)
                 except Exception:
                     self.set_draw_color(14, 165, 233)
-                    self.rect(70, 10, 70, 22)
-                    self.set_xy(70, 18)
+                    self.rect(62.5, 6, 85, 26)
+                    self.set_xy(62.5, 16)
                     self.set_font("Helvetica", "I", 9)
                     self.set_text_color(100, 116, 139)
-                    self.cell(70, 5, "[ Error loading logo ]", align="C")
+                    self.cell(85, 5, "[ Error loading logo ]", align="C")
             else:
                 self.set_draw_color(14, 165, 233)
-                self.rect(70, 10, 70, 22)
-                self.set_xy(70, 18)
+                self.rect(62.5, 6, 85, 26)
+                self.set_xy(62.5, 16)
                 self.set_font("Helvetica", "I", 9)
                 self.set_text_color(100, 116, 139)
-                self.cell(70, 5, "[ Corporate Travel Alliance ]", align="C")
+                self.cell(85, 5, "[ Corporate Travel Alliance ]", align="C")
 
-            # BAJAR EL TEXTO PARA EVITAR SUPERPOSICIÓN: Mover a y=48 en vez de 36
-            self.set_xy(14, 48)
+            # Bajar el saludo para dar espacio al logo más grande: y=56
+            self.set_xy(14, 56)
             self.set_font("Helvetica", "B", 18)
             self.set_text_color(2, 132, 199)
             self.cell(0, 8, f"Hello, {nombre_huesped}!", ln=1, align="L")
             
-            # Subtítulo a la izquierda en inglés
+            # Subtítulo en inglés
             self.set_font("Helvetica", "", 10)
             self.set_text_color(100, 116, 139)
             self.cell(0, 5, "We are Corporate Travel Alliance and it will be a pleasure to welcome you.", ln=1, align="L")
@@ -172,8 +155,8 @@ def crear_pdf():
     # --- PÁGINA 1: TARJETA DE BIENVENIDA ---
     pdf.add_page()
     
-    # --- BLOQUE CENTRAL: BIENVENIDA AL AEROPUERTO (RECORRIDO MÁS ABAJO -> y=66) ---
-    pdf.set_y(66)
+    # --- BLOQUE CENTRAL: PROCEDIMIENTOS DEL AEROPUERTO (MÁS ABAJO -> y=78) ---
+    pdf.set_y(78)
     pdf.set_fill_color(240, 249, 255)
     pdf.rect(12, pdf.get_y(), 186, 38, style="F")
     
@@ -187,11 +170,10 @@ def crear_pdf():
     pdf.set_text_color(51, 65, 85)
     pdf.multi_cell(115, 5.2, INFO_ARRIVALS, border=0, align="L")
     
-    # Cuadro del Letrero sin distorsión (se pasa h=0 para mantener la proporción original)
+    # Letrero proporcional automático sin estirar
     y_actual = pdf.get_y()
     if os.path.exists(CARTEL_PATH):
         try:
-            # Especificamos w=45 y h=0 para calcular la proporción exacta automáticamente
             pdf.image(CARTEL_PATH, x=144, y=y_actual - 26, w=45, h=0)
         except Exception:
             pdf.set_xy(140, y_actual - 25)
@@ -211,19 +193,16 @@ def crear_pdf():
         pdf.set_font("Helvetica", "B", 8)
         pdf.set_text_color(2, 132, 199)
         pdf.cell(50, 4, "TRANSPORTATION SIGN", ln=1, align="C")
-        pdf.set_x(140)
-        pdf.set_font("Helvetica", "I", 8)
-        pdf.set_text_color(100, 116, 139)
-        pdf.cell(50, 4, "[ Official Logo Here ]", ln=1, align="C")
     
-    pdf.set_y(109) # Flujo distribuido proporcionalmente hacia abajo para aprovechar el espacio inferior
+    # Flujo recorrido de manera uniforme hacia abajo para cubrir el espacio en blanco
+    pdf.set_y(124)
     
-    # --- DISEÑO DE TARJETAS DE INFORMACIÓN ---
+    # --- DISEÑO DE TARJETAS DE INFORMACIÓN (Espaciado vertical ampliado) ---
     def crear_tarjeta_datos(titulo_seccion, datos_dict):
         pdf.set_fill_color(2, 132, 199)
         pdf.set_font("Helvetica", "B", 9.5)
         pdf.set_text_color(255, 255, 255)
-        pdf.cell(0, 7, f"   {titulo_seccion}", ln=1, fill=True)
+        pdf.cell(0, 7.5, f"   {titulo_seccion}", ln=1, fill=True)
         
         pdf.set_fill_color(255, 255, 255)
         pdf.set_draw_color(241, 245, 249)
@@ -231,12 +210,12 @@ def crear_pdf():
         for key, val in datos_dict.items():
             pdf.set_font("Helvetica", "B", 9.5)
             pdf.set_text_color(100, 116, 139)
-            pdf.cell(65, 8, f"   {key}", border="B", fill=True)
+            pdf.cell(65, 8.5, f"   {key}", border="B", fill=True)
             
             pdf.set_font("Helvetica", "", 10)
             pdf.set_text_color(15, 23, 42)
-            pdf.cell(0, 8, str(val), border="B", ln=1, fill=True)
-        pdf.ln(5) # Aumentamos la separación entre bloques para balancear la página
+            pdf.cell(0, 8.5, str(val), border="B", ln=1, fill=True)
+        pdf.ln(8) # Mayor separación entre bloques para rellenar la parte inferior
 
     datos_servicio = {
         "Confirmation Number:": confirmacion,
@@ -293,23 +272,4 @@ def crear_pdf():
     return pdf.output()
 
 # --- ACCIÓN DEL BOTÓN ---
-if st.button("🚀 Generar Voucher PDF", type="primary"):
-    if not nombre_input:
-        st.error("Por favor ingresa el nombre del huésped.")
-    elif not confirmacion or not num_vuelo_llegada:
-        st.error("Por favor completa los campos obligatorios (Confirmation Number y Flight Number) antes de continuar.")
-    elif tipo_viaje == "Round Trip" and not num_vuelo_salida:
-        st.error("Por favor ingresa el número de vuelo de salida para el servicio Round Trip.")
-    else:
-        try:
-            pdf_data = bytes(crear_pdf())
-            st.success("¡Voucher generado con éxito!")
-            
-            st.download_button(
-                label="📥 Descargar Voucher (PDF)",
-                data=pdf_data,
-                file_name=f"Voucher_{confirmacion}.pdf",
-                mime="application/pdf"
-            )
-        except Exception as e:
-            st.error(f"Error técnico al compilar el PDF: {e}")
+if
