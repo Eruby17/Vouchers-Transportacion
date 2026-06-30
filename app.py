@@ -27,7 +27,7 @@ st.subheader("Service Information")
 # Service Type Selection
 tipo_viaje = st.radio("Service Type", ["One Way (Arrival Only)", "Round Trip"], horizontal=True)
 
-lista_aerolineas = ["Alaska Airlines", "American Airlines", "Southwest Airlines", "Delta Airlines", "Aeroméxico", "WestJet Airlines"]
+lista_aerolineas = ["Alaska Airlines", "American Airlines", "Southwest Airlines", "Delta Airlines", "Aeroméxico", "WestJet Airlines" ,"United Airlines" , "hawaiian airlines" , " Frontier Airlines" , "Air Canada"]
 
 # Organize layout using tabs
 if tipo_viaje == "Round Trip":
