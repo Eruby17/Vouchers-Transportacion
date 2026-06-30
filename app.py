@@ -133,7 +133,7 @@ class VoucherPDF(FPDF):
             self.set_xy(14, 56)
             self.set_font("Helvetica", "B", 18)
             self.set_text_color(2, 132, 199)
-            self.cell(0, 8, f"Hello, {nombre_huesped}!", ln=1, align="L")
+            self.cell(0, 8, f"Hola, {nombre_huesped}!", ln=1, align="L")
             
             # Subtítulo en inglés
             self.set_font("Helvetica", "", 10)
@@ -219,8 +219,8 @@ def crear_pdf():
 
     datos_servicio = {
         "Confirmation Number:": confirmacion,
-        "Transfer Type / Servicio:": "Round Trip (Regreso Incluido)" if tipo_viaje == "Round Trip" else "One Way (Solo Llegada)",
-        "Guests / Pasajeros:": f"{adultos} Adults / {ninos} Children"
+        "Transfer Type / Servicio:": "Round Trip" if tipo_viaje == "Round Trip" else "One Way",
+        "Passengers:": f"{adultos} Adults / {ninos} Children"
     }
     if requiere_car_seats:
         datos_servicio["Special Add-on:"] = "Complimentary Car Seat Added"
