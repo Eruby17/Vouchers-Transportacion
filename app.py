@@ -127,36 +127,36 @@ class VoucherPDF(FPDF):
 
     def header(self):
         if self.page_no() == 1:
-            # Fixed and explicit logo dimensions to guarantee no overlaps
+            # FIXED LOGO ASPECT RATIO: width=75, height calculated automatically (h=0) to maintain proportions
             if self.logo_file:
                 try: 
-                    self.image(self.logo_file, x=62.5, y=4, w=85, h=16)
+                    self.image(self.logo_file, x=67.5, y=6, w=75, h=0)
                 except Exception: 
                     self.placeholder_logo()
             else:
                 self.placeholder_logo()
 
-            # Welcome text - Absolute safe coordinates
-            self.set_xy(12, 24)
-            self.set_font("Helvetica", "B", 16)
+            # Welcome text - Positioned comfortably below the logo height
+            self.set_xy(12, 34)
+            self.set_font("Helvetica", "B", 18)
             self.set_text_color(15, 23, 42)
-            self.cell(0, 6, f"Hola, {nombre_huesped}!", ln=1, align="L")
+            self.cell(0, 7, f"Hola, {nombre_huesped}!", ln=1, align="L")
             
-            self.set_font("Helvetica", "", 9.5)
+            self.set_font("Helvetica", "", 10)
             self.set_text_color(100, 116, 139)
-            self.cell(0, 4, "We are Corporate Travel Alliance and it will be a pleasure to welcome you.", ln=1, align="L")
+            self.cell(0, 5, "We are Corporate Travel Alliance and it will be a pleasure to welcome you.", ln=1, align="L")
 
     def placeholder_logo(self):
         self.set_draw_color(226, 232, 240)
-        self.rect(62.5, 4, 85, 16)
-        self.set_xy(62.5, 10)
+        self.rect(67.5, 6, 75, 20)
+        self.set_xy(67.5, 14)
         self.set_font("Helvetica", "I", 9)
         self.set_text_color(148, 163, 184)
-        self.cell(85, 5, "[ Corporate Travel Alliance ]", align="C")
+        self.cell(75, 5, "[ Corporate Travel Alliance ]", align="C")
 
     def footer(self):
         if self.page_no() == 1:
-            self.set_y(-10)
+            self.set_y(-12)
             self.set_font("Helvetica", "I", 8)
             self.set_text_color(148, 163, 184)
             self.cell(0, 10, "Corporate Travel Alliance - Page 1/2", align="C")
@@ -186,81 +186,81 @@ def crear_pdf():
     pdf.alias_nb_pages()
     pdf.add_page()
     
-    # --- BLOCK 1: AIRPORT PROCEDURES (y=36) ---
-    pdf.set_y(36)
+    # --- BLOCK 1: AIRPORT PROCEDURES (y=50) ---
+    pdf.set_y(50)
     pdf.set_fill_color(248, 250, 252)
     pdf.set_draw_color(241, 245, 249)
-    pdf.rect(12, 36, 186, 36, style="FD")
+    pdf.rect(12, 50, 186, 42, style="FD")
     
-    pdf.set_xy(16, 38)
-    pdf.set_font("Helvetica", "B", 10.5)
+    pdf.set_xy(16, 53)
+    pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(37, 99, 235)
     pdf.cell(0, 5, "AIRPORT PROCEDURES - HOW TO FIND US", ln=1)
     
-    pdf.escribir_linea_mixta(16, 44, "1. After passing Mexican Immigration, claim luggage and clear Customs.", 4.5)
+    pdf.escribir_linea_mixta(16, 61, "1. After passing Mexican Immigration, claim luggage and clear Customs.", 5.0)
     
     # Timeshare Highlight Box
     pdf.set_fill_color(241, 245, 249)
-    pdf.rect(16, 49.5, 124, 6, style="F")
-    pdf.escribir_linea_mixta(18, 50, "2. **PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.**", 4.5, c_bold=(220, 38, 38))
+    pdf.rect(16, 67.5, 122, 7, style="F")
+    pdf.escribir_linea_mixta(18, 68.5, "2. **PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.**", 5.0, c_bold=(220, 38, 38))
     
-    pdf.escribir_linea_mixta(16, 56.5, "3. Walk outside: Our official staff is waiting for you **UNDER UMBRELLA #4**.", 4.5)
-    pdf.escribir_linea_mixta(16, 61.5, "4. Look for the recognizable transportation sign shown on the right.", 4.5)
+    pdf.escribir_linea_mixta(16, 76.5, "3. Walk outside: Our official staff is waiting for you **UNDER UMBRELLA #4**.", 5.0)
+    pdf.escribir_linea_mixta(16, 83, "4. Look for the recognizable transportation sign shown on the right.", 5.0)
         
     if os.path.exists(CARTEL_PATH):
-        try: pdf.image(CARTEL_PATH, x=148, y=37.5, w=38, h=0)
+        try: pdf.image(CARTEL_PATH, x=148, y=52, w=38, h=0)
         except Exception: pass
 
-    # --- BLOCK 2: TRIP SUMMARY (Full Width Box at y=76) ---
-    pdf.set_xy(12, 76)
+    # --- BLOCK 2: TRIP SUMMARY (Full Width Box at y=100 to fill vertical space) ---
+    pdf.set_xy(12, 100)
     pdf.set_fill_color(255, 255, 255)
     pdf.set_draw_color(226, 232, 240)
-    pdf.rect(12, 76, 186, 22, style="FD")
+    pdf.rect(12, 100, 186, 26, style="FD")
     
-    pdf.set_xy(15, 78)
-    pdf.set_font("Helvetica", "B", 10)
+    pdf.set_xy(15, 103)
+    pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(15, 23, 42)
-    pdf.cell(0, 4, "TRIP SUMMARY", ln=1)
+    pdf.cell(0, 5, "TRIP SUMMARY", ln=1)
     
-    # Horizontal data items for Trip Summary
-    pdf.set_xy(15, 84)
-    pdf.set_font("Helvetica", "B", 8.5)
+    # Data columns inside Trip Summary
+    pdf.set_xy(15, 111)
+    pdf.set_font("Helvetica", "B", 9)
     pdf.set_text_color(100, 116, 139)
-    pdf.cell(32, 5, "Confirmation Number:")
-    pdf.set_font("Helvetica", "", 9)
+    pdf.cell(35, 5, "Confirmation Number:")
+    pdf.set_font("Helvetica", "", 10)
     pdf.set_text_color(15, 23, 42)
-    pdf.cell(35, 5, confirmacion)
+    pdf.cell(32, 5, confirmacion)
     
-    pdf.set_font("Helvetica", "B", 8.5)
+    pdf.set_font("Helvetica", "B", 9)
     pdf.set_text_color(100, 116, 139)
     pdf.cell(24, 5, "Transfer Type:")
-    pdf.set_font("Helvetica", "", 9)
+    pdf.set_font("Helvetica", "", 10)
     pdf.set_text_color(15, 23, 42)
-    pdf.cell(35, 5, "Round Trip" if tipo_viaje == "Round Trip" else "One Way")
+    pdf.cell(32, 5, "Round Trip" if tipo_viaje == "Round Trip" else "One Way")
     
-    pdf.set_font("Helvetica", "B", 8.5)
+    pdf.set_font("Helvetica", "B", 9)
     pdf.set_text_color(100, 116, 139)
-    pdf.cell(20, 5, "Passengers:")
-    pdf.set_font("Helvetica", "", 9)
+    pdf.cell(22, 5, "Passengers:")
+    pdf.set_font("Helvetica", "", 10)
     pdf.set_text_color(15, 23, 42)
     pdf.cell(0, 5, f"{adultos} Ad. / {ninos} Ch.", ln=1)
     
     if requiere_car_seats:
-        pdf.set_xy(15, 90)
-        pdf.set_font("Helvetica", "B", 8.5)
+        pdf.set_xy(15, 118)
+        pdf.set_font("Helvetica", "B", 9)
         pdf.set_text_color(100, 116, 139)
-        pdf.cell(32, 5, "Special Add-on:")
-        pdf.set_font("Helvetica", "", 9)
+        pdf.cell(35, 5, "Special Add-on:")
+        pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(37, 99, 235)
         pdf.cell(0, 5, "Complimentary Car Seat Added")
 
-    # --- BLOCK 3: SIDE-BY-SIDE DETAILS (y=102) ---
+    # --- BLOCK 3: SIDE-BY-SIDE DETAILS (y=134) ---
     # Left Column Box (Arriving Details)
-    pdf.set_xy(12, 102)
-    pdf.rect(12, 102, 91, 31, style="FD")
+    pdf.set_xy(12, 134)
+    pdf.rect(12, 134, 91, 38, style="FD")
     
-    pdf.set_xy(15, 104)
-    pdf.set_font("Helvetica", "B", 10)
+    pdf.set_xy(15, 137)
+    pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(15, 23, 42)
     pdf.cell(0, 5, "ARRIVING DETAILS", ln=1)
     
@@ -269,23 +269,23 @@ def crear_pdf():
         ("Flight & Airline:", vuelo_llegada_completo),
         ("Flight Arrival Time:", hora_llegada.strftime('%I:%M %p'))
     ]
-    y_item = 110
+    y_item = 145
     for label, val in datos_arr:
         pdf.set_xy(15, y_item)
-        pdf.set_font("Helvetica", "B", 8.5)
+        pdf.set_font("Helvetica", "B", 9)
         pdf.set_text_color(100, 116, 139)
-        pdf.cell(32, 4.5, label)
-        pdf.set_font("Helvetica", "", 9)
+        pdf.cell(34, 5, label)
+        pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(15, 23, 42)
-        pdf.cell(0, 4.5, str(val))
-        y_item += 5.0
+        pdf.cell(0, 5, str(val))
+        y_item += 6.0
 
     # Right Column Box (Returning Details)
-    pdf.set_xy(107, 102)
-    pdf.rect(107, 102, 91, 31, style="FD")
+    pdf.set_xy(107, 134)
+    pdf.rect(107, 134, 91, 38, style="FD")
     
-    pdf.set_xy(110, 104)
-    pdf.set_font("Helvetica", "B", 10)
+    pdf.set_xy(110, 137)
+    pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(15, 23, 42)
     pdf.cell(0, 5, "RETURNING DETAILS", ln=1)
     
@@ -296,43 +296,42 @@ def crear_pdf():
             ("Flight Time:", hora_salida.strftime('%I:%M %p')),
             ("Hotel Pick-up:", f"{hora_pickup.strftime('%I:%M %p')} (Lobby)")
         ]
-        y_item = 110
+        y_item = 144
         for label, val in datos_dep:
             pdf.set_xy(110, y_item)
-            pdf.set_font("Helvetica", "B", 8.5)
+            pdf.set_font("Helvetica", "B", 9)
             pdf.set_text_color(100, 116, 139)
-            pdf.cell(32, 4.2, label)
+            pdf.cell(32, 5, label)
             
             if "Pick-up" in label:
-                pdf.set_font("Helvetica", "B", 8.5)
+                pdf.set_font("Helvetica", "B", 9.5)
                 pdf.set_text_color(37, 99, 235)
             else:
-                pdf.set_font("Helvetica", "", 9)
+                pdf.set_font("Helvetica", "", 10)
                 pdf.set_text_color(15, 23, 42)
                 
-            pdf.cell(0, 4.2, str(val))
-            y_item += 4.6
+            pdf.cell(0, 5, str(val))
+            y_item += 5.5
     else:
-        # Standard Clean placeholder text for One Way trips
-        pdf.set_xy(110, 114)
-        pdf.set_font("Helvetica", "I", 9)
+        pdf.set_xy(110, 150)
+        pdf.set_font("Helvetica", "I", 10)
         pdf.set_text_color(148, 163, 184)
         pdf.cell(0, 5, "No return service requested for this trip.")
 
-    # --- BLOCK 4: IMPORTANT TRAVELER NOTES (Fixed bottom anchor y=137) ---
+    # --- BLOCK 4: IMPORTANT TRAVELER NOTES (Perfect bottom distribution at y=180) ---
     pdf.set_fill_color(248, 250, 252)
     pdf.set_draw_color(226, 232, 240)
-    pdf.rect(12, 137, 186, 28, style="FD")
+    pdf.rect(12, 180, 186, 34, style="FD")
     
-    pdf.set_xy(16, 139)
-    pdf.set_font("Helvetica", "B", 9.5)
+    pdf.set_xy(16, 183)
+    pdf.set_font("Helvetica", "B", 10.5)
     pdf.set_text_color(15, 23, 42)
-    pdf.cell(0, 4.5, "IMPORTANT TRAVELER NOTES", ln=1)
+    pdf.cell(0, 5, "IMPORTANT TRAVELER NOTES", ln=1)
     
-    y_policy = 144.5
+    y_policy = 190.5
     for linea in INFO_POLICIES.split("\n"):
-        pdf.escribir_linea_mixta(16, y_policy, linea, 4.0, pt_size=8.5, c_normal=(100, 116, 139), c_bold=(71, 85, 105))
-        y_policy += 4.5
+        pdf.escribir_linea_mixta(16, y_policy, linea, 4.5, pt_size=9, c_normal=(100, 116, 139), c_bold=(71, 85, 105))
+        y_policy += 5.2
     
     # --- PAGE 2: FULL SCREEN MAP ---
     pdf.add_page()
