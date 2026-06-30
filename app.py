@@ -46,7 +46,7 @@ with tab1:
         aerolinea_llegada = st.selectbox("Arrival Airline", lista_aerolineas, key="air_arr")
         num_vuelo_llegada = st.text_input("Arrival Flight Number", placeholder="E.g., 2468", key="num_arr")
         
-        # New alternative: Clean Text Input for Time instead of multiple selectboxes
+        # Clean Text Input for Time instead of multiple selectboxes
         hora_llegada_str = st.text_input("Estimated Time of Arrival (ETA)", value="12:00", placeholder="HH:MM (24h format)")
         try:
             h_arr, m_arr = map(int, hora_llegada_str.split(":"))
@@ -101,7 +101,6 @@ if tipo_viaje == "Round Trip":
             if custom_pickup:
                 hora_pickup_str = st.text_input("Scheduled Pick-up Time", value=hora_auto_str, placeholder="HH:MM (24h format)")
             else:
-                # Disabled/read-only simulation if checkbox is off
                 st.text_input("Scheduled Pick-up Time (Auto-calculated)", value=hora_auto_str, disabled=True)
                 hora_pickup_str = hora_auto_str
                 
@@ -120,7 +119,7 @@ INFO_POLICIES = (
     "Toll Free Assistance: 1-866-448-0151 | Monday to Friday from 8:00 a.m. to 07:00 p.m. (PST)"
 )
 
-# --- COMPRESSED PDF CLASS ---
+# --- COMPRESSED PDF CLASS WITH ANTI-OVERLAP LOGIC ---
 class VoucherPDF(FPDF):
     def __init__(self, logo_file=None):
         super().__init__(orientation='P', unit='mm', format='A4')
@@ -128,15 +127,20 @@ class VoucherPDF(FPDF):
 
     def header(self):
         if self.page_no() == 1:
-            # Shifted logo upwards (y=2 instead of 6) to gain lots of space
+            # Shifted logo to the absolute top edge (y=1) and made it slightly sleeker
             if self.logo_file:
-                try: self.image(self.logo_file, 62.5, 2, 85)
-                except Exception: self.placeholder_logo()
+                try: 
+                    self.image(self.logo_file, x=62.5, y=1, w=85, h=22)
+                    ultimo_y_logo = 24
+                except Exception: 
+                    self.placeholder_logo()
+                    ultimo_y_logo = 25
             else:
                 self.placeholder_logo()
+                ultimo_y_logo = 25
 
-            # Shifted title block upwards (y=44 instead of 56)
-            self.set_xy(14, 44)
+            # Dynamic positioning: Starts exactly below the logo to prevent overlap
+            self.set_xy(14, ultimo_y_logo + 4)
             self.set_font("Helvetica", "B", 17)
             self.set_text_color(2, 132, 199)
             self.cell(0, 7, f"Hello, {nombre_huesped}!", ln=1, align="L")
@@ -144,12 +148,12 @@ class VoucherPDF(FPDF):
             self.set_font("Helvetica", "", 9.5)
             self.set_text_color(100, 116, 139)
             self.cell(0, 4, "We are Corporate Travel Alliance and it will be a pleasure to welcome you.", ln=1, align="L")
-            self.ln(2)
+            self.ln(1)
 
     def placeholder_logo(self):
         self.set_draw_color(14, 165, 233)
-        self.rect(62.5, 2, 85, 24)
-        self.set_xy(62.5, 12)
+        self.rect(62.5, 1, 85, 20)
+        self.set_xy(62.5, 9)
         self.set_font("Helvetica", "I", 9)
         self.set_text_color(100, 116, 139)
         self.cell(85, 5, "[ Corporate Travel Alliance ]", align="C")
@@ -184,8 +188,8 @@ def crear_pdf():
     pdf.alias_nb_pages()
     pdf.add_page()
     
-    # --- CENTRAL BLOCK: AIRPORT PROCEDURES (Shifted up to y=62) ---
-    pdf.set_y(62)
+    # --- CENTRAL BLOCK: AIRPORT PROCEDURES ---
+    pdf.set_y(44)
     pdf.set_fill_color(240, 249, 255)
     pdf.rect(12, pdf.get_y(), 186, 36, style="F")
     
@@ -207,13 +211,12 @@ def crear_pdf():
         y_linea += 5.0
         
     if os.path.exists(CARTEL_PATH):
-        try: pdf.image(CARTEL_PATH, x=146, y=63, w=41, h=0)
+        try: pdf.image(CARTEL_PATH, x=146, y=45, w=41, h=0)
         except Exception: pass
 
-    # Data Summary Sections (Shifted up to y=104)
-    pdf.set_y(104)
+    # Data Summary Sections
+    pdf.set_y(85)
     
-    # Internal optimization: cell height reduced from 8.5 to 7.0, line break spacing reduced to 4
     def crear_tarjeta_datos(titulo_seccion, datos_dict):
         pdf.set_fill_color(2, 132, 199)
         pdf.set_font("Helvetica", "B", 9.5)
@@ -226,12 +229,12 @@ def crear_pdf():
         for key, val in datos_dict.items():
             pdf.set_font("Helvetica", "B", 9)
             pdf.set_text_color(100, 116, 139)
-            pdf.cell(65, 7.0, f"   {key}", border="B", fill=True)
+            pdf.cell(65, 6.8, f"   {key}", border="B", fill=True)
             
             pdf.set_font("Helvetica", "", 9.5)
             pdf.set_text_color(15, 23, 42)
-            pdf.cell(0, 7.0, str(val), border="B", ln=1, fill=True)
-        pdf.ln(4)
+            pdf.cell(0, 6.8, str(val), border="B", ln=1, fill=True)
+        pdf.ln(3.5)
 
     datos_servicio = {
         "Confirmation Number:": confirmacion,
@@ -259,20 +262,21 @@ def crear_pdf():
         }
         crear_tarjeta_datos("RETURNING DETAILS", datos_salida)
     
-    # --- IMPORTANT NOTES BLOCK (Will now fit perfectly on page 1) ---
-    pdf.set_fill_color(254, 243, 199)
-    pdf.set_draw_color(252, 211, 77)
-    pdf.rect(12, pdf.get_y() + 1, 186, 23, style="F")
+    # --- OPTIMIZED AND LARGER POLICIES/NOTES BLOCK ---
+    # Increased text size from 8 to 9, line spacing to 4.5. Box size adapted to 27mm.
+    pdf.set_fill_color(246, 247, 249)
+    pdf.set_draw_color(226, 232, 240)
+    pdf.rect(12, pdf.get_y() + 1, 186, 27, style="F")
     
     pdf.set_xy(16, pdf.get_y() + 2)
-    pdf.set_font("Helvetica", "B", 9)
-    pdf.set_text_color(180, 83, 9)
-    pdf.cell(0, 4.0, "IMPORTANT TRAVELER NOTES", ln=1)
+    pdf.set_font("Helvetica", "B", 9.5)
+    pdf.set_text_color(15, 23, 42)
+    pdf.cell(0, 4.5, "IMPORTANT TRAVELER NOTES", ln=1)
     
     pdf.set_x(16)
-    pdf.set_font("Helvetica", "", 8)
-    pdf.set_text_color(120, 53, 4)
-    pdf.multi_cell(178, 3.8, INFO_POLICIES, border=0, align="L")
+    pdf.set_font("Helvetica", "", 9)  # Font size bumped up to 9pt for high legibility
+    pdf.set_text_color(71, 85, 105)
+    pdf.multi_cell(178, 4.5, INFO_POLICIES, border=0, align="L")
     
     # --- PAGE 2: FULL SCREEN MAP ---
     pdf.add_page()
