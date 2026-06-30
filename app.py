@@ -91,7 +91,7 @@ if tipo_viaje == "Round Trip":
 
 st.markdown("---")
 
-# --- TEXTOS OFICIALES RECONFIGURADOS (MÁS AMIGABLES) ---
+# --- TEXTOS OFICIALES RECONFIGURADOS ---
 INFO_ARRIVALS = (
     "After passing Mexican Immigration, claim checked luggage and clear Customs. "
     "PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS (they will try to sell you unauthorized transportation). "
@@ -149,7 +149,7 @@ def crear_pdf():
     # --- BLOQUE CENTRAL: AIRPORT PROCEDURES & SIGN SPACE ---
     pdf.set_fill_color(245, 247, 250)
     pdf.set_draw_color(218, 226, 236)
-    pdf.rect(12, pdf.get_y(), 186, 38, fill=True)
+    pdf.rect(12, pdf.get_y(), 186, 38, style="F") # CORREGIDO: Usando 'style' en lugar de 'fill'
     
     pdf.set_xy(16, pdf.get_y() + 3)
     pdf.set_font("Helvetica", "B", 10.5)
@@ -165,7 +165,7 @@ def crear_pdf():
     pdf.set_xy(140, pdf.get_y() - 25)
     pdf.set_fill_color(255, 255, 255)
     pdf.set_draw_color(180, 190, 210)
-    pdf.rect(140, pdf.get_y(), 50, 22, fill=True)
+    pdf.rect(140, pdf.get_y(), 50, 22, style="FD") # CORREGIDO: Usando 'style' en lugar de 'fill'
     pdf.set_y(pdf.get_y() + 6)
     pdf.set_x(140)
     pdf.set_font("Helvetica", "B", 8)
@@ -180,7 +180,7 @@ def crear_pdf():
     # --- FUNCIÓN REUTILIZABLE PARA TABLAS ESTILO FACTURA ---
     def item_factura(label, valor, alternar_fondo):
         if alternar_fondo:
-            pdf.set_fill_color(248, 250, 252) # Efecto cebra muy tenue
+            pdf.set_fill_color(248, 250, 252) # Efecto cebra tenue
         else:
             pdf.set_fill_color(255, 255, 255)
         
