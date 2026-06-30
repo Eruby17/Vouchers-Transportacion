@@ -110,7 +110,7 @@ class VoucherPDF(FPDF):
     def header(self):
         if self.page_no() == 1:
             # Centrado del logo en A4: (210 - ancho_logo) / 2 -> (210 - 85) / 2 = 62.5
-            # Subir el logo a y=6 y hacerlo más grande (w=85)
+            # Logo en la parte superior (y=6) y más grande (w=85)
             if self.logo_file:
                 try:
                     self.image(self.logo_file, 62.5, 6, 85)
@@ -129,7 +129,7 @@ class VoucherPDF(FPDF):
                 self.set_text_color(100, 116, 139)
                 self.cell(85, 5, "[ Corporate Travel Alliance ]", align="C")
 
-            # Bajar el saludo para dar espacio al logo más grande: y=56
+            # Espacio libre amplio debajo del logo: y=56
             self.set_xy(14, 56)
             self.set_font("Helvetica", "B", 18)
             self.set_text_color(2, 132, 199)
@@ -155,7 +155,7 @@ def crear_pdf():
     # --- PÁGINA 1: TARJETA DE BIENVENIDA ---
     pdf.add_page()
     
-    # --- BLOQUE CENTRAL: PROCEDIMIENTOS DEL AEROPUERTO (MÁS ABAJO -> y=78) ---
+    # --- BLOQUE CENTRAL: PROCEDIMIENTOS DEL AEROPUERTO (Baja a y=78) ---
     pdf.set_y(78)
     pdf.set_fill_color(240, 249, 255)
     pdf.rect(12, pdf.get_y(), 186, 38, style="F")
@@ -170,7 +170,7 @@ def crear_pdf():
     pdf.set_text_color(51, 65, 85)
     pdf.multi_cell(115, 5.2, INFO_ARRIVALS, border=0, align="L")
     
-    # Letrero proporcional automático sin estirar
+    # Letrero proporcional automático (h=0) sin distorsiones
     y_actual = pdf.get_y()
     if os.path.exists(CARTEL_PATH):
         try:
@@ -194,10 +194,10 @@ def crear_pdf():
         pdf.set_text_color(2, 132, 199)
         pdf.cell(50, 4, "TRANSPORTATION SIGN", ln=1, align="C")
     
-    # Flujo recorrido de manera uniforme hacia abajo para cubrir el espacio en blanco
+    # Tarjetas de información distribuidas hacia el final (y=124)
     pdf.set_y(124)
     
-    # --- DISEÑO DE TARJETAS DE INFORMACIÓN (Espaciado vertical ampliado) ---
+    # --- DISEÑO DE TARJETAS DE INFORMACIÓN (Fila de 8.5mm y separación de 8mm) ---
     def crear_tarjeta_datos(titulo_seccion, datos_dict):
         pdf.set_fill_color(2, 132, 199)
         pdf.set_font("Helvetica", "B", 9.5)
@@ -215,7 +215,7 @@ def crear_pdf():
             pdf.set_font("Helvetica", "", 10)
             pdf.set_text_color(15, 23, 42)
             pdf.cell(0, 8.5, str(val), border="B", ln=1, fill=True)
-        pdf.ln(8) # Mayor separación entre bloques para rellenar la parte inferior
+        pdf.ln(8)
 
     datos_servicio = {
         "Confirmation Number:": confirmacion,
@@ -272,4 +272,23 @@ def crear_pdf():
     return pdf.output()
 
 # --- ACCIÓN DEL BOTÓN ---
-if
+if st.button("🚀 Generar Voucher PDF", type="primary"):
+    if not nombre_input:
+        st.error("Por favor ingresa el nombre del huésped.")
+    elif not confirmacion or not num_vuelo_llegada:
+        st.error("Por favor completa los campos obligatorios (Confirmation Number y Flight Number) antes de continuar.")
+    elif tipo_viaje == "Round Trip" and not num_vuelo_salida:
+        st.error("Por favor ingresa el número de vuelo de salida para el servicio Round Trip.")
+    else:
+        try:
+            pdf_data = bytes(crear_pdf())
+            st.success("¡Voucher generado con éxito!")
+            
+            st.download_button(
+                label="📥 Descargar Voucher (PDF)",
+                data=pdf_data,
+                file_name=f"Voucher_{confirmacion}.pdf",
+                mime="application/pdf"
+            )
+        except Exception as e:
+            st.error(f"Error técnico al compilar el PDF: {e}")
