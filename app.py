@@ -89,13 +89,13 @@ st.markdown("---")
 # --- TEXTOS OFICIALES RECONFIGURADOS ---
 INFO_ARRIVALS = (
     "1. After passing Mexican Immigration, claim luggage and clear Customs.\n"
-    "2. PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS inside the terminal.\n"
+    "2. PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.\n"
     "3. Walk outside: Our official staff is waiting for you under UMBRELLA #4.\n"
     "4. Look for the recognizable transportation sign shown on the right."
 )
 
 INFO_POLICIES = (
-    "Modifications: Contact us at reservations@casadorada.com at least 24 hours before your service.\n"
+    "Modifications: Contact us at reservations@casadorada.com or miriam.cham@casadorada.com at least 24 hours before your service.\n"
     "Departure Pick-ups: The driver will wait a maximum of 10 minutes after the scheduled time.\n"
     "Non-Transferable: This official service is valid exclusively for the registered guest name.\n"
     "Toll Free Assistance: 1-866-448-0151 | Monday to Friday from 8:00 a.m. to 07:00 p.m. (PST)"
