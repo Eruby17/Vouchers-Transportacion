@@ -127,7 +127,7 @@ class VoucherPDF(FPDF):
 
     def header(self):
         if self.page_no() == 1:
-            # Colocar el Logo en el CENTRO y GRANDE (ancho 70mm, centrado horizontalmente en A4)
+            # Colocar el Logo en el CENTRO y GRANDE (ancho 70mm, centrado horizontalmente)
             if self.logo_file:
                 try:
                     self.image(self.logo_file, 70, 10, 70)
@@ -146,13 +146,13 @@ class VoucherPDF(FPDF):
                 self.set_text_color(100, 116, 139)
                 self.cell(70, 5, "[ Corporate Travel Alliance ]", align="C")
 
-            # Saludo en la parte IZQUIERDA y en INGLÉS
-            self.set_xy(14, 36)
+            # BAJAR EL TEXTO PARA EVITAR SUPERPOSICIÓN: Mover a y=48 en vez de 36
+            self.set_xy(14, 48)
             self.set_font("Helvetica", "B", 18)
             self.set_text_color(2, 132, 199)
             self.cell(0, 8, f"Hello, {nombre_huesped}!", ln=1, align="L")
             
-            # Subtítulo en la parte izquierda y en inglés
+            # Subtítulo a la izquierda en inglés
             self.set_font("Helvetica", "", 10)
             self.set_text_color(100, 116, 139)
             self.cell(0, 5, "We are Corporate Travel Alliance and it will be a pleasure to welcome you.", ln=1, align="L")
@@ -172,10 +172,10 @@ def crear_pdf():
     # --- PÁGINA 1: TARJETA DE BIENVENIDA ---
     pdf.add_page()
     
-    # --- BLOQUE CENTRAL: BIENVENIDA AL AEROPUERTO (RECORRIDO HACIA ABAJO -> y=54) ---
-    pdf.set_y(54)
+    # --- BLOQUE CENTRAL: BIENVENIDA AL AEROPUERTO (RECORRIDO MÁS ABAJO -> y=66) ---
+    pdf.set_y(66)
     pdf.set_fill_color(240, 249, 255)
-    pdf.rect(12, pdf.get_y(), 186, 36, style="F")
+    pdf.rect(12, pdf.get_y(), 186, 38, style="F")
     
     pdf.set_xy(16, pdf.get_y() + 3)
     pdf.set_font("Helvetica", "B", 11)
@@ -187,11 +187,12 @@ def crear_pdf():
     pdf.set_text_color(51, 65, 85)
     pdf.multi_cell(115, 5.2, INFO_ARRIVALS, border=0, align="L")
     
-    # Cuadro del Letrero (Sign Box)
+    # Cuadro del Letrero sin distorsión (se pasa h=0 para mantener la proporción original)
     y_actual = pdf.get_y()
     if os.path.exists(CARTEL_PATH):
         try:
-            pdf.image(CARTEL_PATH, x=142, y=y_actual - 26, w=46, h=23)
+            # Especificamos w=45 y h=0 para calcular la proporción exacta automáticamente
+            pdf.image(CARTEL_PATH, x=144, y=y_actual - 26, w=45, h=0)
         except Exception:
             pdf.set_xy(140, y_actual - 25)
             pdf.set_fill_color(255, 255, 255)
@@ -215,7 +216,7 @@ def crear_pdf():
         pdf.set_text_color(100, 116, 139)
         pdf.cell(50, 4, "[ Official Logo Here ]", ln=1, align="C")
     
-    pdf.set_y(94) # Flujo recorrido hacia abajo
+    pdf.set_y(109) # Flujo distribuido proporcionalmente hacia abajo para aprovechar el espacio inferior
     
     # --- DISEÑO DE TARJETAS DE INFORMACIÓN ---
     def crear_tarjeta_datos(titulo_seccion, datos_dict):
@@ -235,7 +236,7 @@ def crear_pdf():
             pdf.set_font("Helvetica", "", 10)
             pdf.set_text_color(15, 23, 42)
             pdf.cell(0, 8, str(val), border="B", ln=1, fill=True)
-        pdf.ln(4)
+        pdf.ln(5) # Aumentamos la separación entre bloques para balancear la página
 
     datos_servicio = {
         "Confirmation Number:": confirmacion,
