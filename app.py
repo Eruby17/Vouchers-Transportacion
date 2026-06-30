@@ -7,7 +7,7 @@ import os
 st.set_page_config(page_title="Corporate Travel Alliance Voucher Generator", layout="centered", page_icon="📋")
 
 st.title("📋 Transportation Voucher Creator")
-st.write("Complete the service details to generate the two-page PDF file.")
+st.write("Complete the service details to generate the compressed PDF file.")
 
 # --- STATIC FILES ---
 MAPA_PATH = "Map.png"
@@ -27,10 +27,7 @@ st.subheader("Service Information")
 # Service Type Selection
 tipo_viaje = st.radio("Service Type", ["One Way (Arrival Only)", "Round Trip"], horizontal=True)
 
-# Configuration lists for time and airline selectors
 lista_aerolineas = ["Alaska Airlines", "American Airlines", "Southwest Airlines", "Delta Airlines", "Aeroméxico", "WestJet Airlines"]
-horas_lista = [f"{i:02d}" for i in range(24)]
-minutos_lista = [f"{i:02d}" for i in range(0, 60, 5)] # 5-minute intervals for quicker selection
 
 # Organize layout using tabs
 if tipo_viaje == "Round Trip":
@@ -49,13 +46,14 @@ with tab1:
         aerolinea_llegada = st.selectbox("Arrival Airline", lista_aerolineas, key="air_arr")
         num_vuelo_llegada = st.text_input("Arrival Flight Number", placeholder="E.g., 2468", key="num_arr")
         
-        st.write("Estimated Time of Arrival (ETA)")
-        c_hr, c_min = st.columns(2)
-        with c_hr:
-            h_arr = st.selectbox("Hour", horas_lista, index=12, key="h_arr_sel")
-        with c_min:
-            m_arr = st.selectbox("Min", minutos_lista, index=0, key="m_arr_sel")
-        hora_llegada = datetime.time(int(h_arr), int(m_arr))
+        # New alternative: Clean Text Input for Time instead of multiple selectboxes
+        hora_llegada_str = st.text_input("Estimated Time of Arrival (ETA)", value="12:00", placeholder="HH:MM (24h format)")
+        try:
+            h_arr, m_arr = map(int, hora_llegada_str.split(":"))
+            hora_llegada = datetime.time(h_arr, m_arr)
+        except ValueError:
+            st.error("Invalid Arrival Time format. Using 12:00 as fallback.")
+            hora_llegada = datetime.time(12, 0)
 
     with col3:
         confirmacion = st.text_input("Confirmation Number", placeholder="E.g., CD-98765").upper()
@@ -68,8 +66,8 @@ vuelo_llegada_completo = f"{aerolinea_llegada} {num_vuelo_llegada}".strip()
 # --- DYNAMIC DEPARTURE SECTION (ROUND TRIP) ---
 fecha_salida = None
 vuelo_salida_completo = ""
-hora_salida = None
-hora_pickup = None
+hora_salida = datetime.time(15, 0)
+hora_pickup = datetime.time(11, 30)
 
 if tipo_viaje == "Round Trip":
     with tab2:
@@ -83,31 +81,35 @@ if tipo_viaje == "Round Trip":
             num_vuelo_salida = st.text_input("Departure Flight Number", placeholder="E.g., 1357", key="num_dep")
             vuelo_salida_completo = f"{aerolinea_salida} {num_vuelo_salida}".strip()
             
-            st.write("Flight Departure Time")
-            c_hr_d, c_min_d = st.columns(2)
-            with c_hr_d:
-                h_dep = st.selectbox("Hour", horas_lista, index=15, key="h_dep_sel")
-            with c_min_d:
-                m_dep = st.selectbox("Min", minutos_lista, index=0, key="m_dep_sel")
-            hora_salida = datetime.time(int(h_dep), int(m_dep))
+            hora_salida_str = st.text_input("Flight Departure Time", value="15:00", placeholder="HH:MM (24h format)")
+            try:
+                h_dep, m_dep = map(int, hora_salida_str.split(":"))
+                hora_salida = datetime.time(h_dep, m_dep)
+            except ValueError:
+                st.error("Invalid Departure Time format. Using 15:00 as fallback.")
+                hora_salida = datetime.time(15, 0)
 
         with col_dep3:
-            # Auto-calculate default pickup time (3.5 hours before flight departure)
+            # 1. Automatic calculation: Exactly 3.5 hours before flight departure
             dt_vuelo = datetime.datetime.combine(datetime.date.today(), hora_salida)
-            dt_pickup_default = dt_vuelo - datetime.timedelta(hours=3, minutes=30)
+            dt_pickup_auto = dt_vuelo - datetime.timedelta(hours=3, minutes=30)
+            hora_auto_str = dt_pickup_auto.strftime('%H:%M')
             
-            st.write("Scheduled Pick-up Time")
-            c_hr_p, c_min_p = st.columns(2)
-            with c_hr_p:
-                h_pick = st.selectbox("Hour", horas_lista, index=horas_lista.index(f"{dt_pickup_default.hour:02d}"), key="h_pick_sel")
-            with c_min_p:
-                min_cercano = str(int(5 * round(dt_pickup_default.minute / 5))).zfill(2)
-                if min_cercano == "60": 
-                    min_cercano = "55"
-                min_lista_idx = minutos_lista.index(min_cercano)
-                m_pick = st.selectbox("Min", minutos_lista, index=min_lista_idx, key="m_pick_sel")
+            # 2. Checkbox option to enable manual override
+            custom_pickup = st.checkbox("Customize Pick-up Time Manually")
             
-            hora_pickup = datetime.time(int(h_pick), int(m_pick))
+            if custom_pickup:
+                hora_pickup_str = st.text_input("Scheduled Pick-up Time", value=hora_auto_str, placeholder="HH:MM (24h format)")
+            else:
+                # Disabled/read-only simulation if checkbox is off
+                st.text_input("Scheduled Pick-up Time (Auto-calculated)", value=hora_auto_str, disabled=True)
+                hora_pickup_str = hora_auto_str
+                
+            try:
+                h_pick, m_pick = map(int, hora_pickup_str.split(":"))
+                hora_pickup = datetime.time(h_pick, m_pick)
+            except ValueError:
+                hora_pickup = dt_pickup_auto.time()
 
 st.markdown("---")
 
@@ -118,7 +120,7 @@ INFO_POLICIES = (
     "Toll Free Assistance: 1-866-448-0151 | Monday to Friday from 8:00 a.m. to 07:00 p.m. (PST)"
 )
 
-# --- PDF CLASS WITH INLINE BOLD SUPPORT ---
+# --- COMPRESSED PDF CLASS ---
 class VoucherPDF(FPDF):
     def __init__(self, logo_file=None):
         super().__init__(orientation='P', unit='mm', format='A4')
@@ -126,38 +128,39 @@ class VoucherPDF(FPDF):
 
     def header(self):
         if self.page_no() == 1:
+            # Shifted logo upwards (y=2 instead of 6) to gain lots of space
             if self.logo_file:
-                try: self.image(self.logo_file, 62.5, 6, 85)
+                try: self.image(self.logo_file, 62.5, 2, 85)
                 except Exception: self.placeholder_logo()
             else:
                 self.placeholder_logo()
 
-            self.set_xy(14, 56)
-            self.set_font("Helvetica", "B", 18)
+            # Shifted title block upwards (y=44 instead of 56)
+            self.set_xy(14, 44)
+            self.set_font("Helvetica", "B", 17)
             self.set_text_color(2, 132, 199)
-            self.cell(0, 8, f"Hello, {nombre_huesped}!", ln=1, align="L")
+            self.cell(0, 7, f"Hello, {nombre_huesped}!", ln=1, align="L")
             
-            self.set_font("Helvetica", "", 10)
+            self.set_font("Helvetica", "", 9.5)
             self.set_text_color(100, 116, 139)
-            self.cell(0, 5, "We are Corporate Travel Alliance and it will be a pleasure to welcome you.", ln=1, align="L")
-            self.ln(5)
+            self.cell(0, 4, "We are Corporate Travel Alliance and it will be a pleasure to welcome you.", ln=1, align="L")
+            self.ln(2)
 
     def placeholder_logo(self):
         self.set_draw_color(14, 165, 233)
-        self.rect(62.5, 6, 85, 26)
-        self.set_xy(62.5, 16)
+        self.rect(62.5, 2, 85, 24)
+        self.set_xy(62.5, 12)
         self.set_font("Helvetica", "I", 9)
         self.set_text_color(100, 116, 139)
         self.cell(85, 5, "[ Corporate Travel Alliance ]", align="C")
 
     def footer(self):
         if self.page_no() == 1:
-            self.set_y(-12)
+            self.set_y(-10)
             self.set_font("Helvetica", "I", 8)
             self.set_text_color(148, 163, 184)
             self.cell(0, 10, "Corporate Travel Alliance - Page 1/2", align="C")
 
-    # Auxiliary function to print mixed fonts (Normal and Bold inline text)
     def escribir_linea_mixta(self, x, y, texto_linea, alto_celda):
         self.set_xy(x, y)
         segmentos = texto_linea.split("**")
@@ -181,17 +184,16 @@ def crear_pdf():
     pdf.alias_nb_pages()
     pdf.add_page()
     
-    # --- CENTRAL BLOCK: AIRPORT PROCEDURES ---
-    pdf.set_y(78)
+    # --- CENTRAL BLOCK: AIRPORT PROCEDURES (Shifted up to y=62) ---
+    pdf.set_y(62)
     pdf.set_fill_color(240, 249, 255)
-    pdf.rect(12, pdf.get_y(), 186, 38, style="F")
+    pdf.rect(12, pdf.get_y(), 186, 36, style="F")
     
-    pdf.set_xy(16, pdf.get_y() + 3)
+    pdf.set_xy(16, pdf.get_y() + 2)
     pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(2, 132, 199)
     pdf.cell(0, 5, "AIRPORT PROCEDURES - HOW TO FIND US", ln=1)
     
-    # Render inline bold text requested
     lineas_arrivals = [
         "1. After passing Mexican Immigration, claim luggage and clear Customs.",
         "2. **PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.**",
@@ -201,34 +203,35 @@ def crear_pdf():
     
     y_linea = pdf.get_y() + 1
     for linea in lineas_arrivals:
-        pdf.escribir_linea_mixta(16, y_linea, linea, 5.2)
-        y_linea += 5.2
+        pdf.escribir_linea_mixta(16, y_linea, linea, 5.0)
+        y_linea += 5.0
         
     if os.path.exists(CARTEL_PATH):
-        try: pdf.image(CARTEL_PATH, x=144, y=79, w=45, h=0)
+        try: pdf.image(CARTEL_PATH, x=146, y=63, w=41, h=0)
         except Exception: pass
 
-    # Data Summary Sections
-    pdf.set_y(124)
+    # Data Summary Sections (Shifted up to y=104)
+    pdf.set_y(104)
     
+    # Internal optimization: cell height reduced from 8.5 to 7.0, line break spacing reduced to 4
     def crear_tarjeta_datos(titulo_seccion, datos_dict):
         pdf.set_fill_color(2, 132, 199)
         pdf.set_font("Helvetica", "B", 9.5)
         pdf.set_text_color(255, 255, 255)
-        pdf.cell(0, 7.5, f"   {titulo_seccion}", ln=1, fill=True)
+        pdf.cell(0, 6.5, f"   {titulo_seccion}", ln=1, fill=True)
         
         pdf.set_fill_color(255, 255, 255)
         pdf.set_draw_color(241, 245, 249)
         
         for key, val in datos_dict.items():
-            pdf.set_font("Helvetica", "B", 9.5)
+            pdf.set_font("Helvetica", "B", 9)
             pdf.set_text_color(100, 116, 139)
-            pdf.cell(65, 8.5, f"   {key}", border="B", fill=True)
+            pdf.cell(65, 7.0, f"   {key}", border="B", fill=True)
             
-            pdf.set_font("Helvetica", "", 10)
+            pdf.set_font("Helvetica", "", 9.5)
             pdf.set_text_color(15, 23, 42)
-            pdf.cell(0, 8.5, str(val), border="B", ln=1, fill=True)
-        pdf.ln(8)
+            pdf.cell(0, 7.0, str(val), border="B", ln=1, fill=True)
+        pdf.ln(4)
 
     datos_servicio = {
         "Confirmation Number:": confirmacion,
@@ -256,20 +259,20 @@ def crear_pdf():
         }
         crear_tarjeta_datos("RETURNING DETAILS", datos_salida)
     
-    # --- IMPORTANT NOTES & POLICIES BLOCK ---
+    # --- IMPORTANT NOTES BLOCK (Will now fit perfectly on page 1) ---
     pdf.set_fill_color(254, 243, 199)
     pdf.set_draw_color(252, 211, 77)
-    pdf.rect(12, pdf.get_y(), 186, 24, style="F")
+    pdf.rect(12, pdf.get_y() + 1, 186, 23, style="F")
     
     pdf.set_xy(16, pdf.get_y() + 2)
     pdf.set_font("Helvetica", "B", 9)
     pdf.set_text_color(180, 83, 9)
-    pdf.cell(0, 4.5, "IMPORTANT TRAVELER NOTES", ln=1)
+    pdf.cell(0, 4.0, "IMPORTANT TRAVELER NOTES", ln=1)
     
     pdf.set_x(16)
     pdf.set_font("Helvetica", "", 8)
     pdf.set_text_color(120, 53, 4)
-    pdf.multi_cell(178, 4, INFO_POLICIES, border=0, align="L")
+    pdf.multi_cell(178, 3.8, INFO_POLICIES, border=0, align="L")
     
     # --- PAGE 2: FULL SCREEN MAP ---
     pdf.add_page()
