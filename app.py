@@ -107,11 +107,14 @@ if tipo_viaje == "Round Trip":
                 hora_salida = datetime.time(15, 0)
 
         with col_dep3:
+            # 1. Automatic calculation: Exactly 3.5 hours before flight departure
             dt_vuelo = datetime.datetime.combine(datetime.date.today(), hora_salida)
             dt_pickup_auto = dt_vuelo - datetime.timedelta(hours=3, minutes=30)
             hora_auto_str = dt_pickup_auto.strftime('%H:%M')
             
+            # 2. Checkbox option to enable manual override
             custom_pickup = st.checkbox("Customize Pick-up Time Manually")
+            
             if custom_pickup:
                 hora_pickup_str = st.text_input("Scheduled Pick-up Time", value=hora_auto_str, placeholder="HH:MM (24h format)")
             else:
@@ -142,8 +145,10 @@ class VoucherPDF(FPDF):
     def header(self):
         if self.page_no() == 1:
             if self.logo_file:
-                try: self.image(self.logo_file, x=67.5, y=4, w=75, h=0)
-                except Exception: self.placeholder_logo()
+                try: 
+                    self.image(self.logo_file, x=67.5, y=4, w=75, h=0)
+                except Exception: 
+                    self.placeholder_logo()
             else:
                 self.placeholder_logo()
 
@@ -207,7 +212,6 @@ def crear_pdf():
     pdf.set_text_color(37, 99, 235)
     pdf.cell(0, 5, "AIRPORT PROCEDURES - HOW TO FIND US", ln=1)
     
-    # FIXED: Perfectly aligned margins for numbers and labels
     pdf.escribir_linea_mixta(16, 89, "1.  After passing Mexican Immigration, claim luggage and clear Customs.", 5.0)
     
     pdf.set_fill_color(241, 245, 249)
@@ -324,8 +328,7 @@ def crear_pdf():
         pdf.set_text_color(148, 163, 184)
         pdf.cell(0, 5, "No return service requested for this trip.")
 
-    # --- BLOCK 4: IMPORTANT TRAVELER NOTES (REDISEÑADO SIN RECUADRO APRETADO) ---
-    # FIXED: Se remueve el recuadro delimitador conflictivo para que el interlineado respire libremente.
+    # --- BLOCK 4: IMPORTANT TRAVELER NOTES ---
     pdf.set_xy(12, 206)
     pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(15, 23, 42)
@@ -333,7 +336,6 @@ def crear_pdf():
     
     y_policy = 214.0
     for linea in INFO_POLICIES.split("\n"):
-        # Se cambia el color de la letra a un Slate corporativo (#1E293B) con alto contraste
         pdf.escribir_linea_mixta(12, y_policy, linea, 4.5, pt_size=9, c_normal=(30, 41, 59), c_bold=(15, 23, 42))
         y_policy += 5.5
     
@@ -362,7 +364,8 @@ if st.button("🚀 Generate PDF Voucher", type="primary", use_container_width=Tr
         st.error("Please enter the departure flight number for Round Trip service.")
     else:
         try:
-            pdf_data = bytes(crear_pdf())
+            pdf_raw = crear_pdf()
+            pdf_data = bytes(pdf_raw, 'latin-1') 
             
             nuevo_log = {
                 "Log Date": datetime.date.today().strftime('%Y-%m-%d'),
@@ -384,7 +387,6 @@ if st.button("🚀 Generate PDF Voucher", type="primary", use_container_width=Tr
             
             st.success("Voucher successfully generated and saved to the daily log!")
             
-            # FIXED: Estructura exacta solicitada para el nombre del archivo descargado
             tag_viaje = "Roundtrip" if tipo_viaje == "Round Trip" else "One Way"
             nombre_archivo_pdf = f"{tag_viaje} Transportation voucher- {confirmacion}- {nombre_huesped}.pdf"
             
