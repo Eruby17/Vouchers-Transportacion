@@ -34,13 +34,17 @@ else:
 with tab1:
     col1, col2, col3 = st.columns(3)
     with col1:
-        nombre_input = st.text_input("Guest Name (You can paste in UPPERCASE)", placeholder="E.g., ALFREDO RIVERA")
+        nombre_input = st.text_input("Guest Name (UPPERCASE allowed)", placeholder="E.g., ALFREDO RIVERA")
         nombre_huesped = nombre_input.strip().title()
         fecha_llegada = st.date_input("Arrival Date", datetime.date.today())
+        
+        # Add-ons placed cleanly at the bottom of col1
+        st.write("**Add-ons:**")
+        requiere_car_seats = st.checkbox("Require Car Seats?", key="cs_check")
+        requiere_grocery = st.checkbox("Include Grocery Stop?", key="gs_check")
     
     with col2:
         aerolinea_llegada = st.selectbox("Arrival Airline", lista_aerolineas, key="air_arr")
-        num_vuelo_llegada = st.text_input("Flight Number", placeholder="E.g., 2468", key="num_arr")
         
         # Clean Text Input for Time
         hora_llegada_str = st.text_input("Arrival Time", value="12:00", placeholder="HH:MM (24h format)")
@@ -50,19 +54,20 @@ with tab1:
         except ValueError:
             st.error("Invalid Arrival Time format. Using 12:00 as fallback.")
             hora_llegada = datetime.time(12, 0)
+            
+        confirmacion = st.text_input("Confirmation Number", placeholder="E.g., CD-98765").upper()
 
     with col3:
+        num_vuelo_llegada = st.text_input("Flight Number", placeholder="E.g., 2468", key="num_arr")
         terminal_seleccionada = st.selectbox("Arrival Terminal", ["Terminal 2", "Terminal 1"], index=0)
-        confirmacion = st.text_input("Confirmation Number", placeholder="E.g., CD-98765").upper()
         
-        # Sub-columns for adults and children to save space
+        # Perfectly symmetrical passenger sub-columns
+        st.write("**Passengers:**")
         sub_c1, sub_c2 = st.columns(2)
         with sub_c1:
             adultos = st.number_input("Adults", min_value=1, value=2, step=1)
         with sub_c2:
             ninos = st.number_input("Children", min_value=0, value=0, step=1)
-            
-        requiere_car_seats = st.checkbox("Require Car Seats?", key="cs_check")
 
 vuelo_llegada_completo = f"{aerolinea_llegada} {num_vuelo_llegada}".strip()
 
@@ -198,17 +203,23 @@ def crear_pdf(terminal):
     pdf.set_text_color(37, 99, 235)
     pdf.cell(0, 5, f"AIRPORT PROCEDURES - HOW TO FIND US ({terminal.upper()})", ln=1)
     
-    pdf.escribir_linea_mixta(16, 89, "1.  After passing Mexican Immigration, claim luggage and clear Customs.", 5.0)
-    
-    pdf.set_fill_color(241, 245, 249)
-    pdf.rect(16, 95.5, 122, 7, style="F")
-    pdf.escribir_linea_mixta(16, 96.5, "2.  **PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.**", 5.0, c_bold=(220, 38, 38))
-    
     # Dynamic Instructions according to Terminal selection
     if terminal == "Terminal 1":
-        pdf.escribir_linea_mixta(16, 104.5, "3.  **ONCE OUT OUR STAFF WILL BE WAITING FOR YOU IN GROUP EXITS.**", 5.0, c_bold=(15, 23, 42))
-        pdf.escribir_linea_mixta(16, 111, "4.  Please take the Groups Exit (first door on your right hand after luggage claim).", 4.5, pt_size=8.5)
+        # Completely omits step 1 (Immigration/Customs) as requested
+        pdf.set_fill_color(241, 245, 249)
+        pdf.rect(16, 88.5, 122, 7, style="F")
+        pdf.escribir_linea_mixta(16, 89.5, "1.  **PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.**", 5.0, c_bold=(220, 38, 38))
+        
+        pdf.escribir_linea_mixta(16, 98.0, "2.  **ONCE OUT OUR STAFF WILL BE WAITING FOR YOU IN GROUP EXITS.**", 5.0, c_bold=(15, 23, 42))
+        pdf.escribir_linea_mixta(16, 105.0, "3.  Please take the Groups Exit (first door on your right hand after luggage claim).", 4.5, pt_size=8.5)
     else:
+        # Standard instructions for Terminal 2
+        pdf.escribir_linea_mixta(16, 89, "1.  After passing Mexican Immigration, claim luggage and clear Customs.", 5.0)
+        
+        pdf.set_fill_color(241, 245, 249)
+        pdf.rect(16, 95.5, 122, 7, style="F")
+        pdf.escribir_linea_mixta(16, 96.5, "2.  **PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.**", 5.0, c_bold=(220, 38, 38))
+        
         pdf.escribir_linea_mixta(16, 104.5, "3.  Walk outside: Our official staff is waiting for you **UNDER UMBRELLA #4**.", 5.0)
         pdf.escribir_linea_mixta(16, 111, "4.  Look for the recognizable transportation sign shown on the right.", 5.0)
         
@@ -220,7 +231,12 @@ def crear_pdf(terminal):
     pdf.set_xy(12, 126)
     pdf.set_fill_color(255, 255, 255)
     pdf.set_draw_color(226, 232, 240)
-    pdf.rect(12, 126, 186, 26, style="FD")
+    
+    # Adjust height dynamically if both add-ons are active
+    rect_height = 26
+    if requiere_car_seats and requiere_grocery:
+        rect_height = 32
+    pdf.rect(12, 126, 186, rect_height, style="FD")
     
     pdf.set_xy(15, 129)
     pdf.set_font("Helvetica", "B", 11)
@@ -249,14 +265,22 @@ def crear_pdf(terminal):
     pdf.set_text_color(15, 23, 42)
     pdf.cell(0, 5, f"{adultos} Ad. / {ninos} Ch.", ln=1)
     
-    if requiere_car_seats:
+    # Dynamic text logic for Add-ons row
+    if requiere_car_seats or requiere_grocery:
         pdf.set_xy(15, 144)
         pdf.set_font("Helvetica", "B", 9)
         pdf.set_text_color(100, 116, 139)
         pdf.cell(35, 5, "Special Add-on:")
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(37, 99, 235)
-        pdf.cell(0, 5, "Complimentary Car Seat Added")
+        
+        addons_list = []
+        if requiere_car_seats:
+            addons_list.append("Complimentary Car Seat Added")
+        if requiere_grocery:
+            addons_list.append("Grocery Stop Included")
+            
+        pdf.cell(0, 5, " | ".join(addons_list))
 
     # --- BLOCK 3: SIDE-BY-SIDE DETAILS ---
     pdf.set_xy(12, 158)
