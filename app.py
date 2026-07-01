@@ -40,10 +40,10 @@ with tab1:
     
     with col2:
         aerolinea_llegada = st.selectbox("Arrival Airline", lista_aerolineas, key="air_arr")
-        num_vuelo_llegada = st.text_input("Arrival Flight Number", placeholder="E.g., 2468", key="num_arr")
+        num_vuelo_llegada = st.text_input("Flight Number", placeholder="E.g., 2468", key="num_arr")
         
         # Clean Text Input for Time
-        hora_llegada_str = st.text_input("Flight Arrival Time", value="12:00", placeholder="HH:MM (24h format)")
+        hora_llegada_str = st.text_input("Arrival Time", value="12:00", placeholder="HH:MM (24h format)")
         try:
             h_arr, m_arr = map(int, hora_llegada_str.split(":"))
             hora_llegada = datetime.time(h_arr, m_arr)
