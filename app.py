@@ -10,16 +10,11 @@ st.title("📋 Transportation Voucher Creator")
 st.write("Complete the service details to generate the professional executive PDF voucher.")
 
 # --- STATIC FILES ---
-MAPA_PATH = "Map.png"
 LOGO_DEFAULT_PATH = "logo.jpeg"
 CARTEL_PATH = "cartel.png"
 
-# Automatically determine which logo to use
+# Automatically determine which logo to use (Without displaying UI messages)
 logo_a_usar = LOGO_DEFAULT_PATH if os.path.exists(LOGO_DEFAULT_PATH) else None
-if logo_a_usar:
-    st.success("✅ 'logo.jpeg' detected and loaded automatically.")
-else:
-    st.info("ℹ️ The voucher will be generated with a blank logo space (add 'logo.jpeg' to the root directory to activate it).")
 
 # --- MAIN FORM ---
 st.subheader("Service Information")
@@ -27,7 +22,8 @@ st.subheader("Service Information")
 # Service Type Selection
 tipo_viaje = st.radio("Service Type", ["One Way (Arrival Only)", "Round Trip"], horizontal=True)
 
-lista_aerolineas = ["Alaska Airlines", "American Airlines", "Southwest Airlines", "Delta Airlines", "Aeroméxico", "WestJet Airlines"]
+# Updated airline list with Mexican carriers
+lista_aerolineas = ["Aeroméxico", "Alaska Airlines", "American Airlines", "Delta Airlines", "Southwest Airlines", "Viva Aerobus", "Volaris", "WestJet Airlines"]
 
 # Organize layout using tabs
 if tipo_viaje == "Round Trip":
@@ -56,9 +52,16 @@ with tab1:
             hora_llegada = datetime.time(12, 0)
 
     with col3:
+        terminal_seleccionada = st.selectbox("Arrival Terminal", ["Terminal 2", "Terminal 1"], index=0)
         confirmacion = st.text_input("Confirmation Number", placeholder="E.g., CD-98765").upper()
-        adultos = st.number_input("Adults", min_value=1, value=2, step=1)
-        ninos = st.number_input("Children", min_value=0, value=0, step=1)
+        
+        # Sub-columns for adults and children to save space
+        sub_c1, sub_c2 = st.columns(2)
+        with sub_c1:
+            adultos = st.number_input("Adults", min_value=1, value=2, step=1)
+        with sub_c2:
+            ninos = st.number_input("Children", min_value=0, value=0, step=1)
+            
         requiere_car_seats = st.checkbox("Require Car Seats?", key="cs_check")
 
 vuelo_llegada_completo = f"{aerolinea_llegada} {num_vuelo_llegada}".strip()
@@ -135,7 +138,6 @@ class VoucherPDF(FPDF):
             else:
                 self.placeholder_logo()
 
-            # Saludo posicionado para evitar encimarse con el logo
             self.set_xy(12, 54)
             self.set_font("Helvetica", "B", 18)
             self.set_text_color(15, 23, 42)
@@ -180,7 +182,7 @@ class VoucherPDF(FPDF):
             self.cell(ancho_texto, alto_celda, segmento, border=0)
             es_negrita = not es_negrita
 
-def crear_pdf():
+def crear_pdf(terminal):
     pdf = VoucherPDF(logo_file=logo_a_usar)
     pdf.alias_nb_pages()
     pdf.add_page()
@@ -194,7 +196,7 @@ def crear_pdf():
     pdf.set_xy(16, 81)
     pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(37, 99, 235)
-    pdf.cell(0, 5, "AIRPORT PROCEDURES - HOW TO FIND US", ln=1)
+    pdf.cell(0, 5, f"AIRPORT PROCEDURES - HOW TO FIND US ({terminal.upper()})", ln=1)
     
     pdf.escribir_linea_mixta(16, 89, "1.  After passing Mexican Immigration, claim luggage and clear Customs.", 5.0)
     
@@ -202,8 +204,13 @@ def crear_pdf():
     pdf.rect(16, 95.5, 122, 7, style="F")
     pdf.escribir_linea_mixta(16, 96.5, "2.  **PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.**", 5.0, c_bold=(220, 38, 38))
     
-    pdf.escribir_linea_mixta(16, 104.5, "3.  Walk outside: Our official staff is waiting for you **UNDER UMBRELLA #4**.", 5.0)
-    pdf.escribir_linea_mixta(16, 111, "4.  Look for the recognizable transportation sign shown on the right.", 5.0)
+    # Dynamic Instructions according to Terminal selection
+    if terminal == "Terminal 1":
+        pdf.escribir_linea_mixta(16, 104.5, "3.  **ONCE OUT OUR STAFF WILL BE WAITING FOR YOU IN GROUP EXITS.**", 5.0, c_bold=(15, 23, 42))
+        pdf.escribir_linea_mixta(16, 111, "4.  Please take the Groups Exit (first door on your right hand after luggage claim).", 4.5, pt_size=8.5)
+    else:
+        pdf.escribir_linea_mixta(16, 104.5, "3.  Walk outside: Our official staff is waiting for you **UNDER UMBRELLA #4**.", 5.0)
+        pdf.escribir_linea_mixta(16, 111, "4.  Look for the recognizable transportation sign shown on the right.", 5.0)
         
     if os.path.exists(CARTEL_PATH):
         try: pdf.image(CARTEL_PATH, x=148, y=80, w=38, h=0)
@@ -263,7 +270,7 @@ def crear_pdf():
     datos_arr = [
         ("Arrival Date:", fecha_llegada.strftime('%B %d, %Y')),
         ("Flight & Airline:", vuelo_llegada_completo),
-        ("Flight Arrival Time:", hora_llegada.strftime('%I:%M %p'))
+        ("Location / Terminal:", terminal)
     ]
     y_item = 170
     for label, val in datos_arr:
@@ -323,18 +330,19 @@ def crear_pdf():
         pdf.escribir_linea_mixta(12, y_policy, linea, 4.5, pt_size=9, c_normal=(30, 41, 59), c_bold=(15, 23, 42))
         y_policy += 5.5
     
-    # --- PAGE 2: MAP ---
+    # --- PAGE 2: MAP (Dynamic selection) ---
     pdf.add_page()
-    if os.path.exists(MAPA_PATH):
+    mapa_a_usar = "map1.jpg" if terminal == "Terminal 1" else "Map.png"
+    
+    if os.path.exists(mapa_a_usar):
         pdf.set_auto_page_break(False, margin=0)
-        pdf.image(MAPA_PATH, x=0, y=0, w=210, h=297)
+        pdf.image(mapa_a_usar, x=0, y=0, w=210, h=297)
         pdf.set_auto_page_break(True, margin=10)
     else:
         pdf.set_text_color(239, 68, 68)
         pdf.set_font("Helvetica", "B", 12)
-        pdf.cell(0, 20, f"[Error: '{MAPA_PATH}' is missing]", ln=1, align="C")
+        pdf.cell(0, 20, f"[Error: '{mapa_a_usar}' is missing]", ln=1, align="C")
 
-    # EXPORTACIÓN SEGURA: Retorna la estructura como string/stream activo sin romper los bytes
     return pdf.output(dest='S')
 
 # --- BUTTON ACTION PROCESSING ---
@@ -349,9 +357,9 @@ if st.button("🚀 Generate PDF Voucher", type="primary", use_container_width=Tr
         st.error("Please enter the departure flight number for Round Trip service.")
     else:
         try:
-            pdf_raw = crear_pdf()
+            pdf_raw = crear_pdf(terminal_seleccionada)
             
-            # CONVERSIÓN SEGURA: Traduce los bytes binarios de las imágenes usando latin-1 para evitar archivos de 0 bytes
+            # Binary translation safe conversion
             pdf_data = bytes(pdf_raw, 'latin-1') 
             
             st.success("Voucher successfully generated!")
