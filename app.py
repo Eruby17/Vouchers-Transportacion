@@ -135,6 +135,7 @@ class VoucherPDF(FPDF):
             else:
                 self.placeholder_logo()
 
+            # Saludo posicionado para evitar encimarse con el logo
             self.set_xy(12, 54)
             self.set_font("Helvetica", "B", 18)
             self.set_text_color(15, 23, 42)
@@ -333,7 +334,8 @@ def crear_pdf():
         pdf.set_font("Helvetica", "B", 12)
         pdf.cell(0, 20, f"[Error: '{MAPA_PATH}' is missing]", ln=1, align="C")
 
-    return pdf.output()
+    # EXPORTACIÓN SEGURA: Retorna la estructura como string/stream activo sin romper los bytes
+    return pdf.output(dest='S')
 
 # --- BUTTON ACTION PROCESSING ---
 st.markdown("### Process and Generate")
@@ -348,6 +350,8 @@ if st.button("🚀 Generate PDF Voucher", type="primary", use_container_width=Tr
     else:
         try:
             pdf_raw = crear_pdf()
+            
+            # CONVERSIÓN SEGURA: Traduce los bytes binarios de las imágenes usando latin-1 para evitar archivos de 0 bytes
             pdf_data = bytes(pdf_raw, 'latin-1') 
             
             st.success("Voucher successfully generated!")
