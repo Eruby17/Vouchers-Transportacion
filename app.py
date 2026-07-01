@@ -332,7 +332,7 @@ def crear_pdf(terminal):
     
     # --- PAGE 2: MAP (Dynamic selection) ---
     pdf.add_page()
-    mapa_a_usar = "map1.jpg" if terminal == "Terminal 1" else "Map.png"
+    mapa_a_usar = "map1.png" if terminal == "Terminal 1" else "Map.png"
     
     if os.path.exists(mapa_a_usar):
         pdf.set_auto_page_break(False, margin=0)
