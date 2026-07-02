@@ -205,7 +205,6 @@ def crear_pdf(terminal):
     
     # Dynamic Instructions according to Terminal selection
     if terminal == "Terminal 1":
-        # Completely omits step 1 (Immigration/Customs) as requested
         pdf.set_fill_color(241, 245, 249)
         pdf.rect(16, 88.5, 122, 7, style="F")
         pdf.escribir_linea_mixta(16, 89.5, "1.  **PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.**", 5.0, c_bold=(220, 38, 38))
@@ -213,7 +212,6 @@ def crear_pdf(terminal):
         pdf.escribir_linea_mixta(16, 98.0, "2.  **ONCE OUT OUR STAFF WILL BE WAITING FOR YOU IN GROUP EXITS.**", 5.0, c_bold=(15, 23, 42))
         pdf.escribir_linea_mixta(16, 105.0, "3.  Please take the Groups Exit (first door on your right hand after luggage claim).", 4.5, pt_size=8.5)
     else:
-        # Standard instructions for Terminal 2
         pdf.escribir_linea_mixta(16, 89, "1.  After passing Mexican Immigration, claim luggage and clear Customs.", 5.0)
         
         pdf.set_fill_color(241, 245, 249)
@@ -232,7 +230,6 @@ def crear_pdf(terminal):
     pdf.set_fill_color(255, 255, 255)
     pdf.set_draw_color(226, 232, 240)
     
-    # Adjust height dynamically if both add-ons are active
     rect_height = 26
     if requiere_car_seats and requiere_grocery:
         rect_height = 32
@@ -265,7 +262,6 @@ def crear_pdf(terminal):
     pdf.set_text_color(15, 23, 42)
     pdf.cell(0, 5, f"{adultos} Ad. / {ninos} Ch.", ln=1)
     
-    # Dynamic text logic for Add-ons row
     if requiere_car_seats or requiere_grocery:
         pdf.set_xy(15, 144)
         pdf.set_font("Helvetica", "B", 9)
@@ -283,120 +279,23 @@ def crear_pdf(terminal):
         pdf.cell(0, 5, " | ".join(addons_list))
 
     # --- BLOCK 3: SIDE-BY-SIDE DETAILS ---
-    pdf.set_xy(12, 158)
-    pdf.rect(12, 158, 91, 42, style="FD")
+    pdf.set_xy(12, 162)
+    pdf.rect(12, 162, 91, 42, style="FD")
     
-    pdf.set_xy(15, 161)
+    pdf.set_xy(15, 165)
     pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(15, 23, 42)
     pdf.cell(0, 5, "ARRIVING DETAILS", ln=1)
     
+    # Se añade la Hora de llegada (Arrival Time) a la lista
     datos_arr = [
         ("Arrival Date:", fecha_llegada.strftime('%B %d, %Y')),
         ("Flight & Airline:", vuelo_llegada_completo),
+        ("Arrival Time:", hora_llegada.strftime('%I:%M %p')),
         ("Location / Terminal:", terminal)
     ]
-    y_item = 170
+    y_item = 173
     for label, val in datos_arr:
         pdf.set_xy(15, y_item)
         pdf.set_font("Helvetica", "B", 9)
-        pdf.set_text_color(100, 116, 139)
-        pdf.cell(34, 5, label)
-        pdf.set_font("Helvetica", "", 10)
-        pdf.set_text_color(15, 23, 42)
-        pdf.cell(0, 5, str(val))
-        y_item += 6.5
-
-    # Right Column Box
-    pdf.set_xy(107, 158)
-    pdf.rect(107, 158, 91, 42, style="FD")
-    
-    pdf.set_xy(110, 161)
-    pdf.set_font("Helvetica", "B", 11)
-    pdf.set_text_color(15, 23, 42)
-    pdf.cell(0, 5, "RETURNING DETAILS", ln=1)
-    
-    if tipo_viaje == "Round Trip":
-        datos_dep = [
-            ("Departure Date:", fecha_salida.strftime('%B %d, %Y')),
-            ("Flight & Airline:", vuelo_salida_completo),
-            ("Flight Time:", hora_salida.strftime('%I:%M %p')),
-            ("Hotel Pick-up:", f"{hora_pickup.strftime('%I:%M %p')} (Lobby)")
-        ]
-        y_item = 169
-        for label, val in datos_dep:
-            pdf.set_xy(110, y_item)
-            pdf.set_font("Helvetica", "B", 9)
-            pdf.set_text_color(100, 116, 139)
-            pdf.cell(32, 5, label)
-            if "Pick-up" in label:
-                pdf.set_font("Helvetica", "B", 9.5)
-                pdf.set_text_color(37, 99, 235)
-            else:
-                pdf.set_font("Helvetica", "", 10)
-                pdf.set_text_color(15, 23, 42)
-            pdf.cell(0, 5, str(val))
-            y_item += 6.0
-    else:
-        pdf.set_xy(110, 176)
-        pdf.set_font("Helvetica", "I", 10)
-        pdf.set_text_color(148, 163, 184)
-        pdf.cell(0, 5, "No return service requested for this trip.")
-
-    # --- BLOCK 4: IMPORTANT TRAVELER NOTES ---
-    pdf.set_xy(12, 206)
-    pdf.set_font("Helvetica", "B", 11)
-    pdf.set_text_color(15, 23, 42)
-    pdf.cell(0, 5, "IMPORTANT TRAVELER NOTES", ln=1)
-    
-    y_policy = 214.0
-    for linea in INFO_POLICIES.split("\n"):
-        pdf.escribir_linea_mixta(12, y_policy, linea, 4.5, pt_size=9, c_normal=(30, 41, 59), c_bold=(15, 23, 42))
-        y_policy += 5.5
-    
-    # --- PAGE 2: MAP (Dynamic selection) ---
-    pdf.add_page()
-    mapa_a_usar = "map1.png" if terminal == "Terminal 1" else "Map.png"
-    
-    if os.path.exists(mapa_a_usar):
-        pdf.set_auto_page_break(False, margin=0)
-        pdf.image(mapa_a_usar, x=0, y=0, w=210, h=297)
-        pdf.set_auto_page_break(True, margin=10)
-    else:
-        pdf.set_text_color(239, 68, 68)
-        pdf.set_font("Helvetica", "B", 12)
-        pdf.cell(0, 20, f"[Error: '{mapa_a_usar}' is missing]", ln=1, align="C")
-
-    return pdf.output(dest='S')
-
-# --- BUTTON ACTION PROCESSING ---
-st.markdown("### Process and Generate")
-
-if st.button("🚀 Generate PDF Voucher", type="primary", use_container_width=True):
-    if not nombre_input:
-        st.error("Please enter the guest name.")
-    elif not confirmacion or not num_vuelo_llegada:
-        st.error("Please complete the required fields (Confirmation Number and Flight Number) before proceeding.")
-    elif tipo_viaje == "Round Trip" and not num_vuelo_salida:
-        st.error("Please enter the departure flight number for Round Trip service.")
-    else:
-        try:
-            pdf_raw = crear_pdf(terminal_seleccionada)
-            
-            # Binary translation safe conversion
-            pdf_data = bytes(pdf_raw, 'latin-1') 
-            
-            st.success("Voucher successfully generated!")
-            
-            tag_viaje = "Roundtrip" if tipo_viaje == "Round Trip" else "One Way"
-            nombre_archivo_pdf = f"{tag_viaje} Transportation voucher- {confirmacion}- {nombre_huesped}.pdf"
-            
-            st.download_button(
-                label="📥 Download PDF Voucher",
-                data=pdf_data,
-                file_name=nombre_archivo_pdf,
-                mime="application/pdf",
-                use_container_width=True
-            )
-        except Exception as e:
-            st.error(f"Technical error during PDF compilation: {e}")
+        pdf.set_text_color(100, 116,
