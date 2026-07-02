@@ -298,4 +298,104 @@ def crear_pdf(terminal):
     for label, val in datos_arr:
         pdf.set_xy(15, y_item)
         pdf.set_font("Helvetica", "B", 9)
-        pdf.set_text_color(100, 116,
+        pdf.set_text_color(100, 116, 139)
+        pdf.cell(34, 5, label)
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(15, 23, 42)
+        pdf.cell(0, 5, str(val))
+        y_item += 5.5
+
+    # Right Column Box
+    pdf.set_xy(107, 162)
+    pdf.rect(107, 162, 91, 42, style="FD")
+    
+    pdf.set_xy(110, 165)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(15, 23, 42)
+    pdf.cell(0, 5, "RETURNING DETAILS", ln=1)
+    
+    if tipo_viaje == "Round Trip":
+        # Se estructuran los datos de salida respetando el espacio visual
+        datos_dep = [
+            ("Departure Date:", fecha_salida.strftime('%B %d, %Y')),
+            ("Flight & Airline:", vuelo_salida_completo),
+            ("Flight Time:", hora_salida.strftime('%I:%M %p')),
+            ("Hotel Pick-up:", f"{hora_pickup.strftime('%I:%M %p')} (Lobby)")
+        ]
+        y_item = 173
+        for label, val in datos_dep:
+            pdf.set_xy(110, y_item)
+            pdf.set_font("Helvetica", "B", 9)
+            pdf.set_text_color(100, 116, 139)
+            pdf.cell(32, 5, label)
+            if "Pick-up" in label:
+                pdf.set_font("Helvetica", "B", 9.5)
+                pdf.set_text_color(37, 99, 235)
+            else:
+                pdf.set_font("Helvetica", "", 10)
+                pdf.set_text_color(15, 23, 42)
+            pdf.cell(0, 5, str(val))
+            y_item += 5.5
+    else:
+        pdf.set_xy(110, 180)
+        pdf.set_font("Helvetica", "I", 10)
+        pdf.set_text_color(148, 163, 184)
+        pdf.cell(0, 5, "No return service requested for this trip.")
+
+    # --- BLOCK 4: IMPORTANT TRAVELER NOTES ---
+    pdf.set_xy(12, 210)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(15, 23, 42)
+    pdf.cell(0, 5, "IMPORTANT TRAVELER NOTES", ln=1)
+    
+    y_policy = 217.0
+    for linea in INFO_POLICIES.split("\n"):
+        pdf.escribir_linea_mixta(12, y_policy, linea, 4.5, pt_size=9, c_normal=(30, 41, 59), c_bold=(15, 23, 42))
+        y_policy += 5.5
+    
+    # --- PAGE 2: MAP (Dynamic selection) ---
+    pdf.add_page()
+    mapa_a_usar = "map1.png" if terminal == "Terminal 1" else "Map.png"
+    
+    if os.path.exists(mapa_a_usar):
+        pdf.set_auto_page_break(False, margin=0)
+        pdf.image(mapa_a_usar, x=0, y=0, w=210, h=297)
+        pdf.set_auto_page_break(True, margin=10)
+    else:
+        pdf.set_text_color(239, 68, 68)
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.cell(0, 20, f"[Error: '{mapa_a_usar}' is missing]", ln=1, align="C")
+
+    return pdf.output(dest='S')
+
+# --- BUTTON ACTION PROCESSING ---
+st.markdown("### Process and Generate")
+
+if st.button("🚀 Generate PDF Voucher", type="primary", use_container_width=True):
+    if not nombre_input:
+        st.error("Please enter the guest name.")
+    elif not confirmacion or not num_vuelo_llegada:
+        st.error("Please complete the required fields (Confirmation Number and Flight Number) before proceeding.")
+    elif tipo_viaje == "Round Trip" and not num_vuelo_salida:
+        st.error("Please enter the departure flight number for Round Trip service.")
+    else:
+        try:
+            pdf_raw = crear_pdf(terminal_seleccionada)
+            
+            # Binary translation safe conversion
+            pdf_data = bytes(pdf_raw, 'latin-1') 
+            
+            st.success("Voucher successfully generated!")
+            
+            tag_viaje = "Roundtrip" if tipo_viaje == "Round Trip" else "One Way"
+            nombre_archivo_pdf = f"{tag_viaje} Transportation voucher- {confirmacion}- {nombre_huesped}.pdf"
+            
+            st.download_button(
+                label="📥 Download PDF Voucher",
+                data=pdf_data,
+                file_name=nombre_archivo_pdf,
+                mime="application/pdf",
+                use_container_width=True
+            )
+        except Exception as e:
+            st.error(f"Technical error during PDF compilation: {e}")
