@@ -23,7 +23,7 @@ st.subheader("Service Information")
 tipo_viaje = st.radio("Service Type", ["One Way (Arrival Only)", "Round Trip"], horizontal=True)
 
 # Updated airline list with Mexican carriers
-lista_aerolineas = ["Aeroméxico", "Alaska Airlines", "American Airlines", "Delta Airlines", "Southwest Airlines", "Viva Aerobus", "Volaris", "WestJet Airlines"]
+lista_aerolineas = ["Aeroméxico", "Alaska Airlines", "American Airlines", "Delta Airlines", "United Airlines", "Frontier Airlines", "Jet Blue Airlines", "Southwest Airlines", "Viva Aerobus", "Volaris", "WestJet Airlines"]
 
 # Organize layout using tabs
 if tipo_viaje == "Round Trip":
