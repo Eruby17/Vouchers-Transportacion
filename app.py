@@ -236,11 +236,12 @@ def crear_pdf(terminal):
     pdf.alias_nb_pages()
     pdf.add_page()
     
-    # --- BLOCK 1: AIRPORT PROCEDURES ---
+    # --- BLOCK 1: AIRPORT PROCEDURES (Optimized bounds for larger image) ---
     pdf.set_y(78)
     pdf.set_fill_color(248, 250, 252)
     pdf.set_draw_color(241, 245, 249)
-    pdf.rect(12, 78, 186, 42, style="FD")
+    # Box height increased from 42 to 48 to prevent overlay and bounds breaks
+    pdf.rect(12, 78, 186, 48, style="FD")
     
     pdf.set_xy(16, 81)
     pdf.set_font("Helvetica", "B", 11)
@@ -251,52 +252,52 @@ def crear_pdf(terminal):
     
     if terminal == "Terminal 1":
         pdf.set_fill_color(241, 245, 249)
-        pdf.rect(16, 88.5, 140, 7, style="F")
+        pdf.rect(16, 88.5, 132, 7, style="F")
         if idioma == "English":
             pdf.escribir_linea_mixta(16, 89.5, "1.  **PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.**", 5.0, c_bold=(220, 38, 38))
             pdf.escribir_linea_mixta(16, 98.0, "2.  **ONCE OUT OUR STAFF WILL BE WAITING FOR YOU IN GROUP EXITS.**", 5.0, c_bold=(15, 23, 42))
-            pdf.escribir_linea_mixta(16, 105.0, "3.  Please take the Groups Exit (first door on your right hand after luggage claim).", 4.5, pt_size=8.5)
+            pdf.escribir_linea_mixta(16, 106.0, "3.  Please take the Groups Exit (first door on your right hand after luggage claim).", 4.5, pt_size=8.5)
         else:
             pdf.escribir_linea_mixta(16, 89.5, "1.  **POR FAVOR NO SE DETENGA EN LOS MÓDULOS DE TIEMPO COMPARTIDO.**", 5.0, c_bold=(220, 38, 38))
             pdf.escribir_linea_mixta(16, 98.0, "2.  **UNA VEZ AFUERA NUESTRO PERSONAL LO ESPERARÁ EN LA SALIDA DE GRUPOS.**", 5.0, c_bold=(15, 23, 42))
-            pdf.escribir_linea_mixta(16, 105.0, "3.  Por favor tome la Salida de Grupos (primera puerta a su derecha después del reclamo de equipaje).", 4.5, pt_size=8.5)
+            pdf.escribir_linea_mixta(16, 106.0, "3.  Por favor tome la Salida de Grupos (primera puerta a su derecha después del reclamo de equipaje).", 4.5, pt_size=8.5)
     else:
         if idioma == "English":
             pdf.escribir_linea_mixta(16, 89, "1.  After passing Mexican Immigration, claim luggage and clear Customs.", 5.0)
             pdf.set_fill_color(241, 245, 249)
-            pdf.rect(16, 95.5, 140, 7, style="F")
+            pdf.rect(16, 95.5, 132, 7, style="F")
             pdf.escribir_linea_mixta(16, 96.5, "2.  **PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.**", 5.0, c_bold=(220, 38, 38))
             pdf.escribir_linea_mixta(16, 104.5, "3.  Walk outside: Our official staff is waiting for you **UNDER UMBRELLA #4**.", 5.0)
-            pdf.escribir_linea_mixta(16, 111, "4.  Look for the recognizable transportation sign shown on the right.", 5.0)
+            pdf.escribir_linea_mixta(16, 112.5, "4.  Look for the recognizable transportation sign shown on the right.", 5.0)
         else:
             pdf.escribir_linea_mixta(16, 89, "1.  Tras pasar la sección de Inmigración, reclame su equipaje y pase Aduanas.", 5.0)
             pdf.set_fill_color(241, 245, 249)
-            pdf.rect(16, 95.5, 140, 7, style="F")
+            pdf.rect(16, 95.5, 132, 7, style="F")
             pdf.escribir_linea_mixta(16, 96.5, "2.  **POR FAVOR NO SE DETENGA EN LOS MÓDULOS DE TIEMPO COMPARTIDO.**", 5.0, c_bold=(220, 38, 38))
             pdf.escribir_linea_mixta(16, 104.5, "3.  Salga del edificio: Nuestro personal oficial le espera **BAJO LA SOMBRILLA #4**.", 5.0)
-            pdf.escribir_linea_mixta(16, 111, "4.  Busque el letrero de transporte reconocible que se muestra a la derecha.", 5.0)
+            pdf.escribir_linea_mixta(16, 112.5, "4.  Busque el letrero de transporte reconocible que se muestra a la derecha.", 5.0)
         
+    # Standardized unified big cartels layout configuration for both languages
     if os.path.exists(CARTEL_PATH):
-        try: pdf.image(CARTEL_PATH, x=160, y=80, w=26, h=0)
+        try: pdf.image(CARTEL_PATH, x=152, y=82, w=35, h=0)
         except Exception: pass
 
-    # --- BLOCK 2: TRIP SUMMARY ---
-    pdf.set_xy(12, 126)
+    # --- BLOCK 2: TRIP SUMMARY (Y offset pushed to 132 because block 1 got higher) ---
+    pdf.set_xy(12, 132)
     pdf.set_fill_color(255, 255, 255)
     pdf.set_draw_color(226, 232, 240)
     
     rect_height = 26
     if requiere_car_seats and requiere_grocery:
         rect_height = 32
-    pdf.rect(12, 126, 186, rect_height, style="FD")
+    pdf.rect(12, 132, 186, rect_height, style="FD")
     
-    pdf.set_xy(15, 129)
+    pdf.set_xy(15, 135)
     pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(15, 23, 42)
     pdf.cell(0, 5, "TRIP SUMMARY" if idioma == "English" else "RESUMEN DEL VIAJE", ln=1)
     
-    # Labels Block 2
-    pdf.set_xy(15, 137)
+    pdf.set_xy(15, 143)
     pdf.set_font("Helvetica", "B", 9)
     pdf.set_text_color(100, 116, 139)
     pdf.cell(38, 5, "Confirmation Number:" if idioma == "English" else "No. de Confirmación:")
@@ -325,7 +326,7 @@ def crear_pdf(terminal):
     pdf.cell(0, 5, pax_txt, ln=1)
     
     if requiere_car_seats or requiere_grocery:
-        pdf.set_xy(15, 144)
+        pdf.set_xy(15, 150)
         pdf.set_font("Helvetica", "B", 9)
         pdf.set_text_color(100, 116, 139)
         pdf.cell(38, 5, "Special Add-on:" if idioma == "English" else "Servicios Adicionales:")
@@ -340,16 +341,15 @@ def crear_pdf(terminal):
             
         pdf.cell(0, 5, " | ".join(addons_list))
 
-    # --- BLOCK 3: SIDE-BY-SIDE DETAILS ---
-    pdf.set_xy(12, 162)
-    pdf.rect(12, 162, 91, 42, style="FD")
+    # --- BLOCK 3: SIDE-BY-SIDE DETAILS (Y offset pushed to 168) ---
+    pdf.set_xy(12, 168)
+    pdf.rect(12, 168, 91, 42, style="FD")
     
-    pdf.set_xy(15, 165)
+    pdf.set_xy(15, 171)
     pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(15, 23, 42)
     pdf.cell(0, 5, "ARRIVING DETAILS" if idioma == "English" else "DETALLES DE LLEGADA", ln=1)
     
-    # Months translation mapping for standard look
     meses_es = {"January": "Enero", "February": "Febrero", "March": "Marzo", "April": "Abril", "May": "Mayo", "June": "Junio", "July": "Julio", "August": "Agosto", "September": "Septiembre", "October": "Octubre", "November": "Noviembre", "December": "Diciembre"}
     
     fecha_llegada_str_pdf = fecha_llegada.strftime('%B %d, %Y')
@@ -363,7 +363,7 @@ def crear_pdf(terminal):
         ("Arrival Time:" if idioma == "English" else "Hora de Llegada:", hora_llegada.strftime('%I:%M %p')),
         ("Location / Terminal:" if idioma == "English" else "Lugar / Terminal:", terminal)
     ]
-    y_item = 173
+    y_item = 179
     for label, val in datos_arr:
         pdf.set_xy(15, y_item)
         pdf.set_font("Helvetica", "B", 9)
@@ -375,10 +375,10 @@ def crear_pdf(terminal):
         y_item += 5.5
 
     # Right Column Box
-    pdf.set_xy(107, 162)
-    pdf.rect(107, 162, 91, 42, style="FD")
+    pdf.set_xy(107, 168)
+    pdf.rect(107, 168, 91, 42, style="FD")
     
-    pdf.set_xy(110, 165)
+    pdf.set_xy(110, 171)
     pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(15, 23, 42)
     pdf.cell(0, 5, "RETURNING DETAILS" if idioma == "English" else "DETALLES DE REGRESO", ln=1)
@@ -395,13 +395,13 @@ def crear_pdf(terminal):
             ("Flight Time:" if idioma == "English" else "Hora del Vuelo:", hora_salida.strftime('%I:%M %p')),
             ("Hotel Pick-up:" if idioma == "English" else "Pick-up en Hotel:", f"{hora_pickup.strftime('%I:%M %p')} (Lobby)")
         ]
-        y_item = 173
+        y_item = 179
         for label, val in datos_dep:
             pdf.set_xy(110, y_item)
             pdf.set_font("Helvetica", "B", 9)
             pdf.set_text_color(100, 116, 139)
             pdf.cell(32, 5, label)
-            if "Pick-up" in label or "Pick-up" in label:
+            if "Pick-up" in label:
                 pdf.set_font("Helvetica", "B", 9.5)
                 pdf.set_text_color(37, 99, 235)
             else:
@@ -410,19 +410,19 @@ def crear_pdf(terminal):
             pdf.cell(0, 5, str(val))
             y_item += 5.5
     else:
-        pdf.set_xy(110, 180)
+        pdf.set_xy(110, 186)
         pdf.set_font("Helvetica", "I", 10)
         pdf.set_text_color(148, 163, 184)
         no_ret_txt = "No return service requested for this trip." if idioma == "English" else "No se solicitó servicio de regreso."
         pdf.cell(0, 5, no_ret_txt)
 
-    # --- BLOCK 4: IMPORTANT TRAVELER NOTES ---
-    pdf.set_xy(12, 210)
+    # --- BLOCK 4: IMPORTANT TRAVELER NOTES (Y offset pushed to 216) ---
+    pdf.set_xy(12, 216)
     pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(15, 23, 42)
     pdf.cell(0, 5, "IMPORTANT TRAVELER NOTES" if idioma == "English" else "NOTAS IMPORTANTES PARA EL VIAJERO", ln=1)
     
-    y_policy = 217.0
+    y_policy = 223.0
     for linea in INFO_POLICIES.split("\n"):
         pdf.escribir_linea_mixta(12, y_policy, linea, 4.5, pt_size=9, c_normal=(30, 41, 59), c_bold=(15, 23, 42))
         y_policy += 5.5
