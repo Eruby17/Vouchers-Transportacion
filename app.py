@@ -7,7 +7,6 @@ import os
 st.set_page_config(page_title="Corporate Travel Alliance Voucher Generator", layout="centered", page_icon="📋")
 
 # --- LANGUAGE CONFIGURATION ---
-# Default language is English as requested
 idioma = st.sidebar.radio("🌐 Language / Idioma", ["English", "Español"], index=0)
 
 # Dictionary for interface translations
@@ -16,11 +15,12 @@ t = {
     "desc": "Complete the service details to generate the professional executive PDF voucher." if idioma == "English" else "Complete los detalles del servicio para generar el vale en PDF ejecutivo.",
     "sub_info": "Service Information" if idioma == "English" else "Información del Servicio",
     "type": "Service Type" if idioma == "English" else "Tipo de Servicio",
-    "ow": "One Way (Arrival Only)" if idioma == "English" else "Sencillo (Solo Llegada)",
+    "ow_arr": "One Way (Arrival Only)" if idioma == "English" else "Sencillo (Solo Llegada)",
+    "ow_dep": "One Way (Departure Only)" if idioma == "English" else "Sencillo (Solo Salida)",
     "rt": "Round Trip" if idioma == "English" else "Viaje Redondo",
     "tab_arr": "🛬 Arrival Information" if idioma == "English" else "🛬 Información de Llegada",
     "tab_dep": "🛫 Departure Information" if idioma == "English" else "🛫 Información de Salida",
-    "guest": "Guest Name (UPPERCASE allowed)" if idioma == "English" else "Nombre del Huésped (Se permite MAYÚSCULAS)",
+    "guest": "Guest Name (UPPERCASE allowed)" if idioma == "English" else "Nombre del Huésped",
     "date_arr": "Arrival Date" if idioma == "English" else "Fecha de Llegada",
     "date_dep": "Departure Date" if idioma == "English" else "Fecha de Salida",
     "addons": "**Add-ons:**" if idioma == "English" else "**Adicionales:**",
@@ -44,10 +44,32 @@ t = {
     "btn_gen": "🚀 Generate PDF Voucher" if idioma == "English" else "🚀 Generar Vale en PDF",
     "btn_dl": "📥 Download PDF Voucher" if idioma == "English" else "📥 Descargar Vale en PDF",
     "err_name": "Please enter the guest name." if idioma == "English" else "Por favor, introduzca el nombre del huésped.",
-    "err_req": "Please complete the required fields (Confirmation Number and Flight Number) before proceeding." if idioma == "English" else "Por favor, complete los campos obligatorios (Número de Confirmación y de Vuelo) antes de continuar.",
-    "err_dep": "Please enter the departure flight number for Round Trip service." if idioma == "English" else "Por favor, introduzca el número de vuelo de salida para el servicio de viaje redondo.",
-    "success": "Voucher successfully generated!" if idioma == "English" else "¡Vale generado con éxito!"
+    "err_req": "Please complete the required fields." if idioma == "English" else "Por favor, complete los campos obligatorios.",
+    "err_dep": "Please enter the departure details." if idioma == "English" else "Por favor, introduzca los detalles de salida.",
+    "success": "Voucher successfully generated!" if idioma == "English" else "¡Vale generado con éxito!",
+    "reset": "🧹 Reset Form" if idioma == "English" else "🧹 Limpiar Formulario"
 }
+
+# --- SESSION STATE & RESET FUNCTION ---
+def reset_form():
+    st.session_state["guest_name"] = ""
+    st.session_state["conf_num"] = ""
+    st.session_state["fl_arr"] = ""
+    st.session_state["fl_dep"] = ""
+    st.session_state["cs_check"] = False
+    st.session_state["gs_check"] = False
+    st.session_state["adults_count"] = 2
+    st.session_state["children_count"] = 0
+    st.session_state["time_arr_val"] = "12:00"
+    st.session_state["time_dep_val"] = "15:00"
+
+if "guest_name" not in st.session_state:
+    reset_form()
+
+# Add a Reset Button in the sidebar
+if st.sidebar.button(t["reset"], use_container_width=True):
+    reset_form()
+    st.rerun()
 
 st.title(t["title"])
 st.write(t["desc"])
@@ -55,81 +77,110 @@ st.write(t["desc"])
 # --- STATIC FILES ---
 LOGO_DEFAULT_PATH = "logo.jpeg"
 CARTEL_PATH = "cartel.png"
-
 logo_a_usar = LOGO_DEFAULT_PATH if os.path.exists(LOGO_DEFAULT_PATH) else None
 
 # --- MAIN FORM ---
 st.subheader(t["sub_info"])
 
-tipo_viaje = st.radio(t["type"], [t["ow"], t["rt"]], horizontal=True)
+tipo_viaje = st.radio(t["type"], [t["ow_arr"], t["ow_dep"], t["rt"]], horizontal=True)
 
 lista_aerolineas = ["Aeroméxico", "Alaska Airlines", "American Airlines", "Delta Airlines", "United Airlines", "Frontier Airlines", "Jet Blue Airlines", "Southwest Airlines", "Viva Aerobus", "Volaris", "WestJet Airlines"]
 
+# Tabs Logic depending on trip selection
 if tipo_viaje == t["rt"]:
     tab1, tab2 = st.tabs([t["tab_arr"], t["tab_dep"]])
-else:
+elif tipo_viaje == t["ow_arr"]:
     tab1 = st.tabs([t["tab_arr"]])[0]
+else:
+    tab2 = st.tabs([t["tab_dep"]])[0]
 
-with tab1:
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        nombre_input = st.text_input(t["guest"], placeholder="E.g., ALFREDO RIVERA")
-        nombre_huesped = nombre_input.strip().title()
-        fecha_llegada = st.date_input(t["date_arr"], datetime.date.today())
-        
-        st.write(t["addons"])
-        requiere_car_seats = st.checkbox(t["cs"], key="cs_check")
-        requiere_grocery = st.checkbox(t["gs"], key="gs_check")
-    
-    with col2:
-        aerolinea_llegada = st.selectbox(t["airline_arr"], lista_aerolineas, key="air_arr")
-        hora_llegada_str = st.text_input(t["time_arr"], value="12:00", placeholder="HH:MM (24h format)")
-        try:
-            h_arr, m_arr = map(int, hora_llegada_str.split(":"))
-            hora_llegada = datetime.time(h_arr, m_arr)
-        except ValueError:
-            st.error("Invalid Arrival Time format. Using 12:00 as fallback." if idioma == "English" else "Formato de hora inválido. Usando 12:00 por defecto.")
-            hora_llegada = datetime.time(12, 0)
+# --- TAB 1: ARRIVAL ---
+nombre_huesped = ""
+fecha_llegada = datetime.date.today()
+vuelo_llegada_completo = ""
+hora_llegada = datetime.time(12, 0)
+terminal_seleccionada = "Terminal 2"
+adultos = 2
+ninos = 0
+requiere_car_seats = False
+requiere_grocery = False
+confirmacion = ""
+
+if tipo_viaje in [t["ow_arr"], t["rt"]]:
+    with tab1:
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            nombre_input = st.text_input(t["guest"], key="guest_name", placeholder="E.g., ALFREDO RIVERA")
+            nombre_huesped = nombre_input.strip().title()
+            fecha_llegada = st.date_input(t["date_arr"], datetime.date.today())
             
-        confirmacion = st.text_input(t["conf"], placeholder="E.g., CD-98765").upper()
-
-    with col3:
-        num_vuelo_llegada = st.text_input(t["flight"], placeholder="E.g., 2468", key="num_arr")
-        terminal_seleccionada = st.selectbox(t["term"], ["Terminal 2", "Terminal 1"], index=0)
+            st.write(t["addons"])
+            requiere_car_seats = st.checkbox(t["cs"], key="cs_check")
+            requiere_grocery = st.checkbox(t["gs"], key="gs_check")
         
-        st.write(t["pax"])
-        sub_c1, sub_c2 = st.columns(2)
-        with sub_c1:
-            adultos = st.number_input(t["adults"], min_value=1, value=2, step=1)
-        with sub_c2:
-            ninos = st.number_input(t["children"], min_value=0, value=0, step=1)
+        with col2:
+            aerolinea_llegada = st.selectbox(t["airline_arr"], lista_aerolineas, key="air_arr")
+            hora_llegada_str = st.text_input(t["time_arr"], key="time_arr_val", placeholder="HH:MM (24h format)")
+            try:
+                h_arr, m_arr = map(int, hora_llegada_str.split(":"))
+                hora_llegada = datetime.time(h_arr, m_arr)
+            except ValueError:
+                hora_llegada = datetime.time(12, 0)
+                
+            confirmacion = st.text_input(t["conf"], key="conf_num", placeholder="E.g., CD-98765").upper()
 
-vuelo_llegada_completo = f"{aerolinea_llegada} {num_vuelo_llegada}".strip()
+        with col3:
+            num_vuelo_llegada = st.text_input(t["flight"], key="fl_arr", placeholder="E.g., 2468")
+            terminal_seleccionada = st.selectbox(t["term"], ["Terminal 2", "Terminal 1"], index=0)
+            
+            st.write(t["pax"])
+            sub_c1, sub_c2 = st.columns(2)
+            with sub_c1:
+                adultos = st.number_input(t["adults"], min_value=1, step=1, key="adults_count")
+            with sub_c2:
+                ninos = st.number_input(t["children"], min_value=0, step=1, key="children_count")
 
-# --- DYNAMIC DEPARTURE SECTION ---
+    vuelo_llegada_completo = f"{aerolinea_llegada} {num_vuelo_llegada}".strip()
+else:
+    # If Departure Only, we still need Guest Name & Confirmation
+    col_dep_only_1, col_dep_only_2 = st.columns(2)
+    with col_dep_only_1:
+        nombre_input = st.text_input(t["guest"], key="guest_name", placeholder="E.g., ALFREDO RIVERA")
+        nombre_huesped = nombre_input.strip().title()
+    with col_dep_only_2:
+        confirmacion = st.text_input(t["conf"], key="conf_num", placeholder="E.g., CD-98765").upper()
+
+# --- TAB 2: DEPARTURE ---
 fecha_salida = None
 vuelo_salida_completo = ""
 hora_salida = datetime.time(15, 0)
 hora_pickup = datetime.time(11, 30)
 
-if tipo_viaje == t["rt"]:
+if tipo_viaje in [t["ow_dep"], t["rt"]]:
     with tab2:
         col_dep1, col_dep2, col_dep3 = st.columns(3)
         
         with col_dep1:
-            fecha_salida = st.date_input(t["date_dep"], datetime.date.today() + datetime.timedelta(days=5))
-            aerolinea_salida = st.selectbox(t["airline_dep"], lista_aerolineas, key="air_dep")
+            # Auto-calculate default departure date to +4 days from arrival date
+            default_dep_date = fecha_llegada + datetime.timedelta(days=4) if tipo_viaje == t["rt"] else datetime.date.today()
+            fecha_salida = st.date_input(t["date_dep"], default_dep_date)
+            
+            # Default to same airline as arrival if roundtrip
+            if tipo_viaje == t["rt"] and 'aerolinea_llegada' in locals():
+                default_idx = lista_aerolineas.index(aerolinea_llegada) if aerolinea_llegada in lista_aerolineas else 0
+            else:
+                default_idx = 0
+            aerolinea_salida = st.selectbox(t["airline_dep"], lista_aerolineas, index=default_idx, key="air_dep")
 
         with col_dep2:
-            num_vuelo_salida = st.text_input(t["flight_dep"], placeholder="E.g., 1357", key="num_dep")
+            num_vuelo_salida = st.text_input(t["flight_dep"], key="fl_dep", placeholder="E.g., 1357")
             vuelo_salida_completo = f"{aerolinea_salida} {num_vuelo_salida}".strip()
             
-            hora_salida_str = st.text_input(t["time_dep"], value="15:00", placeholder="HH:MM (24h format)")
+            hora_salida_str = st.text_input(t["time_dep"], key="time_dep_val", placeholder="HH:MM (24h format)")
             try:
                 h_dep, m_dep = map(int, hora_salida_str.split(":"))
                 hora_salida = datetime.time(h_dep, m_dep)
             except ValueError:
-                st.error("Invalid Departure Time format. Using 15:00 as fallback." if idioma == "English" else "Formato de hora de salida inválido. Usando 15:00 por defecto.")
                 hora_salida = datetime.time(15, 0)
 
         with col_dep3:
@@ -153,21 +204,39 @@ if tipo_viaje == t["rt"]:
 
 st.markdown("---")
 
-# Polices dynamic translation
-if idioma == "English":
-    INFO_POLICIES = (
-        "**Modifications:** Contact us at reservations@casadorada.com or miriam.cham@casadorada.com at least 24 hours before your service.\n"
-        "**Departure Pick-ups:** The driver will wait a maximum of 10 minutes after the scheduled time.\n"
-        "**Non-Transferable:** This official service is valid exclusively for the registered guest name.\n"
-        "**Toll Free Assistance:** 1-866-448-0151 | Monday to Friday from 8:00 a.m. to 07:00 p.m. (PST)"
-    )
+# Dynamic policies based on language and service type
+if tipo_viaje == t["ow_dep"]:
+    if idioma == "English":
+        INFO_POLICIES = (
+            "**Hotel Departure Pick-up:** The driver will be waiting for you in the lobby of your hotel.\n"
+            "**Waiting Time:** The maximum waiting time is **10 minutes** from your scheduled pick-up time.\n"
+            "**No-Show Policy:** After 10 minutes, the service is declared a No-Show and is completely non-refundable.\n"
+            "**Modifications:** Any change must be made at least 24 hours prior to service at reservations@casadorada.com.\n"
+            "**Have a safe flight back home! We look forward to seeing you soon!**"
+        )
+    else:
+        INFO_POLICIES = (
+            "**Salida del Hotel:** El conductor le estará esperando en el lobby de su hotel.\n"
+            "**Tiempo de Espera:** El tiempo de espera máximo es de **10 minutos** a partir de la hora programada.\n"
+            "**No-Show:** Transcurridos los 10 minutos, el servicio se considerará No-Show y no será reembolsable.\n"
+            "**Modificaciones:** Cualquier cambio debe notificarse 24 horas antes a reservations@casadorada.com.\n"
+            "**¡Buen viaje de regreso a casa! ¡Esperamos verle pronto!**"
+        )
 else:
-    INFO_POLICIES = (
-        "**Modificaciones:** Contáctenos en reservations@casadorada.com o miriam.cham@casadorada.com al menos 24 horas antes de su servicio.\n"
-        "**Recolección de Salida:** El conductor esperará un máximo de 10 minutos después de la hora programada.\n"
-        "**No Transferible:** Este servicio oficial es válido exclusivamente para el nombre del huésped registrado.\n"
-        "**Asistencia Telefónica Gratuita:** 1-866-448-0151 | Lunes a Viernes de 8:00 a.m. a 07:00 p.m. (PST)"
-    )
+    if idioma == "English":
+        INFO_POLICIES = (
+            "**Modifications:** Contact us at reservations@casadorada.com at least 24 hours before your service.\n"
+            "**Departure Pick-ups:** The driver will wait a maximum of 10 minutes after the scheduled lobby time.\n"
+            "**Non-Transferable:** This official service is valid exclusively for the registered guest name.\n"
+            "**Toll Free Assistance:** 1-866-448-0151 | Monday to Friday from 8:00 a.m. to 07:00 p.m. (PST)"
+        )
+    else:
+        INFO_POLICIES = (
+            "**Modificaciones:** Contáctenos en reservations@casadorada.com al menos 24 horas antes de su servicio.\n"
+            "**Recolección de Salida:** El conductor esperará un máximo de 10 minutos después de la hora programada.\n"
+            "**No Transferible:** Este servicio oficial es válido exclusivamente para el nombre del huésped registrado.\n"
+            "**Asistencia Telefónica Gratuita:** 1-866-448-0151 | Lunes a Viernes de 8:00 a.m. a 07:00 p.m. (PST)"
+        )
 
 # --- EXECUTIVE PREMIUM PDF CLASS ---
 class VoucherPDF(FPDF):
@@ -208,7 +277,7 @@ class VoucherPDF(FPDF):
             self.set_y(-12)
             self.set_font("Helvetica", "I", 8)
             self.set_text_color(148, 163, 184)
-            footer_text = "Corporate Travel Alliance - Page 1/2" if idioma == "English" else "Corporate Travel Alliance - Página 1/2"
+            footer_text = "Corporate Travel Alliance"
             self.cell(0, 10, footer_text, align="C")
 
     def escribir_linea_mixta(self, x, y, texto_linea, alto_celda, pt_size=9.5, c_normal=(71, 85, 105), c_bold=(15, 23, 42)):
@@ -236,68 +305,75 @@ def crear_pdf(terminal):
     pdf.alias_nb_pages()
     pdf.add_page()
     
-    # --- BLOCK 1: AIRPORT PROCEDURES (Optimized bounds for larger image) ---
-    pdf.set_y(78)
-    pdf.set_fill_color(248, 250, 252)
-    pdf.set_draw_color(241, 245, 249)
-    # Box height increased from 42 to 48 to prevent overlay and bounds breaks
-    pdf.rect(12, 78, 186, 48, style="FD")
+    # Adjust dynamic offsets based on whether it is a Departure Only service
+    is_dep_only = (tipo_viaje == t["ow_dep"])
     
-    pdf.set_xy(16, 81)
-    pdf.set_font("Helvetica", "B", 11)
-    pdf.set_text_color(37, 99, 235)
-    
-    proc_title = f"AIRPORT PROCEDURES - HOW TO FIND US ({terminal.upper()})" if idioma == "English" else f"PROCEDIMIENTOS EN EL AEROPUERTO - CÓMO ENCONTRARNOS ({terminal.upper()})"
-    pdf.cell(0, 5, proc_title, ln=1)
-    
-    if terminal == "Terminal 1":
-        pdf.set_fill_color(241, 245, 249)
-        pdf.rect(16, 88.5, 132, 7, style="F")
-        if idioma == "English":
-            pdf.escribir_linea_mixta(16, 89.5, "1.  **PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.**", 5.0, c_bold=(220, 38, 38))
-            pdf.escribir_linea_mixta(16, 98.0, "2.  **ONCE OUT OUR STAFF WILL BE WAITING FOR YOU IN GROUP EXITS.**", 5.0, c_bold=(15, 23, 42))
-            pdf.escribir_linea_mixta(16, 106.0, "3.  Please take the Groups Exit (first door on your right hand after luggage claim).", 4.5, pt_size=8.5)
-        else:
-            pdf.escribir_linea_mixta(16, 89.5, "1.  **POR FAVOR NO SE DETENGA EN LOS MÓDULOS DE TIEMPO COMPARTIDO.**", 5.0, c_bold=(220, 38, 38))
-            pdf.escribir_linea_mixta(16, 98.0, "2.  **UNA VEZ AFUERA NUESTRO PERSONAL LO ESPERARÁ EN LA SALIDA DE GRUPOS.**", 5.0, c_bold=(15, 23, 42))
-            pdf.escribir_linea_mixta(16, 106.0, "3.  Por favor tome la Salida de Grupos (primera puerta a su derecha después del reclamo de equipaje).", 4.5, pt_size=8.5)
-    else:
-        if idioma == "English":
-            pdf.escribir_linea_mixta(16, 89, "1.  After passing Mexican Immigration, claim luggage and clear Customs.", 5.0)
-            pdf.set_fill_color(241, 245, 249)
-            pdf.rect(16, 95.5, 132, 7, style="F")
-            pdf.escribir_linea_mixta(16, 96.5, "2.  **PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.**", 5.0, c_bold=(220, 38, 38))
-            pdf.escribir_linea_mixta(16, 104.5, "3.  Walk outside: Our official staff is waiting for you **UNDER UMBRELLA #4**.", 5.0)
-            pdf.escribir_linea_mixta(16, 112.5, "4.  Look for the recognizable transportation sign shown on the right.", 5.0)
-        else:
-            pdf.escribir_linea_mixta(16, 89, "1.  Tras pasar la sección de Inmigración, reclame su equipaje y pase Aduanas.", 5.0)
-            pdf.set_fill_color(241, 245, 249)
-            pdf.rect(16, 95.5, 132, 7, style="F")
-            pdf.escribir_linea_mixta(16, 96.5, "2.  **POR FAVOR NO SE DETENGA EN LOS MÓDULOS DE TIEMPO COMPARTIDO.**", 5.0, c_bold=(220, 38, 38))
-            pdf.escribir_linea_mixta(16, 104.5, "3.  Salga del edificio: Nuestro personal oficial le espera **BAJO LA SOMBRILLA #4**.", 5.0)
-            pdf.escribir_linea_mixta(16, 112.5, "4.  Busque el letrero de transporte reconocible que se muestra a la derecha.", 5.0)
+    if not is_dep_only:
+        # --- BLOCK 1: AIRPORT PROCEDURES (Only if Arrival is included) ---
+        pdf.set_y(78)
+        pdf.set_fill_color(248, 250, 252)
+        pdf.set_draw_color(241, 245, 249)
+        pdf.rect(12, 78, 186, 48, style="FD")
         
-    # Standardized unified big cartels layout configuration for both languages
-    if os.path.exists(CARTEL_PATH):
-        try: pdf.image(CARTEL_PATH, x=152, y=82, w=35, h=0)
-        except Exception: pass
+        pdf.set_xy(16, 81)
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_text_color(37, 99, 235)
+        
+        proc_title = f"AIRPORT PROCEDURES - HOW TO FIND US ({terminal.upper()})" if idioma == "English" else f"PROCEDIMIENTOS EN EL AEROPUERTO - CÓMO ENCONTRARNOS ({terminal.upper()})"
+        pdf.cell(0, 5, proc_title, ln=1)
+        
+        if terminal == "Terminal 1":
+            pdf.set_fill_color(241, 245, 249)
+            pdf.rect(16, 88.5, 132, 7, style="F")
+            if idioma == "English":
+                pdf.escribir_linea_mixta(16, 89.5, "1.  **PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.**", 5.0, c_bold=(220, 38, 38))
+                pdf.escribir_linea_mixta(16, 98.0, "2.  **ONCE OUT OUR STAFF WILL BE WAITING FOR YOU IN GROUP EXITS.**", 5.0, c_bold=(15, 23, 42))
+                pdf.escribir_linea_mixta(16, 106.0, "3.  Please take the Groups Exit (first door on your right hand after luggage claim).", 4.5, pt_size=8.5)
+            else:
+                pdf.escribir_linea_mixta(16, 89.5, "1.  **POR FAVOR NO SE DETENGA EN LOS MÓDULOS DE TIEMPO COMPARTIDO.**", 5.0, c_bold=(220, 38, 38))
+                pdf.escribir_linea_mixta(16, 98.0, "2.  **UNA VEZ AFUERA NUESTRO PERSONAL LO ESPERARÁ EN LA SALIDA DE GRUPOS.**", 5.0, c_bold=(15, 23, 42))
+                pdf.escribir_linea_mixta(16, 106.0, "3.  Por favor tome la Salida de Grupos (primera puerta a su derecha después del reclamo de equipaje).", 4.5, pt_size=8.5)
+        else:
+            if idioma == "English":
+                pdf.escribir_linea_mixta(16, 89, "1.  After passing Mexican Immigration, claim luggage and clear Customs.", 5.0)
+                pdf.set_fill_color(241, 245, 249)
+                pdf.rect(16, 95.5, 132, 7, style="F")
+                pdf.escribir_linea_mixta(16, 96.5, "2.  **PLEASE DO NOT STOP AT THE TIMESHARE BOOTHS.**", 5.0, c_bold=(220, 38, 38))
+                pdf.escribir_linea_mixta(16, 104.5, "3.  Walk outside: Our official staff is waiting for you **UNDER UMBRELLA #4**.", 5.0)
+                pdf.escribir_linea_mixta(16, 112.5, "4.  Look for the recognizable transportation sign shown on the right.", 5.0)
+            else:
+                pdf.escribir_linea_mixta(16, 89, "1.  Tras pasar la sección de Inmigración, reclame su equipaje y pase Aduanas.", 5.0)
+                pdf.set_fill_color(241, 245, 249)
+                pdf.rect(16, 95.5, 132, 7, style="F")
+                pdf.escribir_linea_mixta(16, 96.5, "2.  **POR FAVOR NO SE DETENGA EN LOS MÓDULOS DE TIEMPO COMPARTIDO.**", 5.0, c_bold=(220, 38, 38))
+                pdf.escribir_linea_mixta(16, 104.5, "3.  Salga del edificio: Nuestro personal oficial le espera **BAJO LA SOMBRILLA #4**.", 5.0)
+                pdf.escribir_linea_mixta(16, 112.5, "4.  Busque el letrero de transporte reconocible que se muestra a la derecha.", 5.0)
+            
+        if os.path.exists(CARTEL_PATH):
+            try: pdf.image(CARTEL_PATH, x=152, y=82, w=35, h=0)
+            except Exception: pass
 
-    # --- BLOCK 2: TRIP SUMMARY (Y offset pushed to 132 because block 1 got higher) ---
-    pdf.set_xy(12, 132)
+        y_offset_block2 = 132
+    else:
+        # Shift everything up since there's no airport procedures block
+        y_offset_block2 = 78
+
+    # --- BLOCK 2: TRIP SUMMARY ---
+    pdf.set_xy(12, y_offset_block2)
     pdf.set_fill_color(255, 255, 255)
     pdf.set_draw_color(226, 232, 240)
     
     rect_height = 26
     if requiere_car_seats and requiere_grocery:
         rect_height = 32
-    pdf.rect(12, 132, 186, rect_height, style="FD")
+    pdf.rect(12, y_offset_block2, 186, rect_height, style="FD")
     
-    pdf.set_xy(15, 135)
+    pdf.set_xy(15, y_offset_block2 + 3)
     pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(15, 23, 42)
     pdf.cell(0, 5, "TRIP SUMMARY" if idioma == "English" else "RESUMEN DEL VIAJE", ln=1)
     
-    pdf.set_xy(15, 143)
+    pdf.set_xy(15, y_offset_block2 + 11)
     pdf.set_font("Helvetica", "B", 9)
     pdf.set_text_color(100, 116, 139)
     pdf.cell(38, 5, "Confirmation Number:" if idioma == "English" else "No. de Confirmación:")
@@ -313,6 +389,8 @@ def crear_pdf(terminal):
     
     if tipo_viaje == t["rt"]:
         tt_val = "Round Trip" if idioma == "English" else "Viaje Redondo"
+    elif tipo_viaje == t["ow_dep"]:
+        tt_val = "One Way (Departure)" if idioma == "English" else "Sencillo (Salida)"
     else:
         tt_val = "One Way" if idioma == "English" else "Viaje Sencillo"
     pdf.cell(32, 5, tt_val)
@@ -325,8 +403,8 @@ def crear_pdf(terminal):
     pax_txt = f"{adultos} Ad. / {ninos} Ch." if idioma == "English" else f"{adultos} Ad. / {ninos} Niñ."
     pdf.cell(0, 5, pax_txt, ln=1)
     
-    if requiere_car_seats or requiere_grocery:
-        pdf.set_xy(15, 150)
+    if (requiere_car_seats or requiere_grocery) and not is_dep_only:
+        pdf.set_xy(15, y_offset_block2 + 18)
         pdf.set_font("Helvetica", "B", 9)
         pdf.set_text_color(100, 116, 139)
         pdf.cell(38, 5, "Special Add-on:" if idioma == "English" else "Servicios Adicionales:")
@@ -341,49 +419,20 @@ def crear_pdf(terminal):
             
         pdf.cell(0, 5, " | ".join(addons_list))
 
-    # --- BLOCK 3: SIDE-BY-SIDE DETAILS (Y offset pushed to 168) ---
-    pdf.set_xy(12, 168)
-    pdf.rect(12, 168, 91, 42, style="FD")
-    
-    pdf.set_xy(15, 171)
-    pdf.set_font("Helvetica", "B", 11)
-    pdf.set_text_color(15, 23, 42)
-    pdf.cell(0, 5, "ARRIVING DETAILS" if idioma == "English" else "DETALLES DE LLEGADA", ln=1)
-    
+    # --- BLOCK 3: DETAILS (Dynamic layout based on type of trip) ---
+    y_offset_block3 = y_offset_block2 + rect_height + 6
     meses_es = {"January": "Enero", "February": "Febrero", "March": "Marzo", "April": "Abril", "May": "Mayo", "June": "Junio", "July": "Julio", "August": "Agosto", "September": "Septiembre", "October": "Octubre", "November": "Noviembre", "December": "Diciembre"}
-    
-    fecha_llegada_str_pdf = fecha_llegada.strftime('%B %d, %Y')
-    if idioma != "English":
-        for eng, esp in meses_es.items():
-            fecha_llegada_str_pdf = fecha_llegada_str_pdf.replace(eng, esp)
 
-    datos_arr = [
-        ("Arrival Date:" if idioma == "English" else "Fecha de Llegada:", fecha_llegada_str_pdf),
-        ("Flight & Airline:" if idioma == "English" else "Vuelo y Aerolínea:", vuelo_llegada_completo),
-        ("Arrival Time:" if idioma == "English" else "Hora de Llegada:", hora_llegada.strftime('%I:%M %p')),
-        ("Location / Terminal:" if idioma == "English" else "Lugar / Terminal:", terminal)
-    ]
-    y_item = 179
-    for label, val in datos_arr:
-        pdf.set_xy(15, y_item)
-        pdf.set_font("Helvetica", "B", 9)
-        pdf.set_text_color(100, 116, 139)
-        pdf.cell(34, 5, label)
-        pdf.set_font("Helvetica", "", 10)
+    if is_dep_only:
+        # Full width Returning details only
+        pdf.set_xy(12, y_offset_block3)
+        pdf.rect(12, y_offset_block3, 186, 42, style="FD")
+        
+        pdf.set_xy(15, y_offset_block3 + 3)
+        pdf.set_font("Helvetica", "B", 11)
         pdf.set_text_color(15, 23, 42)
-        pdf.cell(0, 5, str(val))
-        y_item += 5.5
-
-    # Right Column Box
-    pdf.set_xy(107, 168)
-    pdf.rect(107, 168, 91, 42, style="FD")
-    
-    pdf.set_xy(110, 171)
-    pdf.set_font("Helvetica", "B", 11)
-    pdf.set_text_color(15, 23, 42)
-    pdf.cell(0, 5, "RETURNING DETAILS" if idioma == "English" else "DETALLES DE REGRESO", ln=1)
-    
-    if tipo_viaje == t["rt"]:
+        pdf.cell(0, 5, "DEPARTURE DETAILS" if idioma == "English" else "DETALLES DE SALIDA", ln=1)
+        
         fecha_salida_str_pdf = fecha_salida.strftime('%B %d, %Y')
         if idioma != "English":
             for eng, esp in meses_es.items():
@@ -395,51 +444,121 @@ def crear_pdf(terminal):
             ("Flight Time:" if idioma == "English" else "Hora del Vuelo:", hora_salida.strftime('%I:%M %p')),
             ("Hotel Pick-up:" if idioma == "English" else "Pick-up en Hotel:", f"{hora_pickup.strftime('%I:%M %p')} (Lobby)")
         ]
-        y_item = 179
+        y_item = y_offset_block3 + 11
         for label, val in datos_dep:
-            pdf.set_xy(110, y_item)
-            pdf.set_font("Helvetica", "B", 9)
+            pdf.set_xy(15, y_item)
+            pdf.set_font("Helvetica", "B", 9.5)
             pdf.set_text_color(100, 116, 139)
-            pdf.cell(32, 5, label)
+            pdf.cell(45, 5, label)
             if "Pick-up" in label:
-                pdf.set_font("Helvetica", "B", 9.5)
+                pdf.set_font("Helvetica", "B", 10.5)
                 pdf.set_text_color(37, 99, 235)
             else:
-                pdf.set_font("Helvetica", "", 10)
+                pdf.set_font("Helvetica", "", 10.5)
                 pdf.set_text_color(15, 23, 42)
             pdf.cell(0, 5, str(val))
-            y_item += 5.5
+            y_item += 6.5
+            
     else:
-        pdf.set_xy(110, 186)
-        pdf.set_font("Helvetica", "I", 10)
-        pdf.set_text_color(148, 163, 184)
-        no_ret_txt = "No return service requested for this trip." if idioma == "English" else "No se solicitó servicio de regreso."
-        pdf.cell(0, 5, no_ret_txt)
+        # Left Column Box: Arrival Details
+        pdf.set_xy(12, y_offset_block3)
+        pdf.rect(12, y_offset_block3, 91, 42, style="FD")
+        
+        pdf.set_xy(15, y_offset_block3 + 3)
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_text_color(15, 23, 42)
+        pdf.cell(0, 5, "ARRIVING DETAILS" if idioma == "English" else "DETALLES DE LLEGADA", ln=1)
+        
+        fecha_llegada_str_pdf = fecha_llegada.strftime('%B %d, %Y')
+        if idioma != "English":
+            for eng, esp in meses_es.items():
+                fecha_llegada_str_pdf = fecha_llegada_str_pdf.replace(eng, esp)
 
-    # --- BLOCK 4: IMPORTANT TRAVELER NOTES (Y offset pushed to 216) ---
-    pdf.set_xy(12, 216)
+        datos_arr = [
+            ("Arrival Date:" if idioma == "English" else "Fecha de Llegada:", fecha_llegada_str_pdf),
+            ("Flight & Airline:" if idioma == "English" else "Vuelo y Aerolínea:", vuelo_llegada_completo),
+            ("Arrival Time:" if idioma == "English" else "Hora de Llegada:", hora_llegada.strftime('%I:%M %p')),
+            ("Location / Terminal:" if idioma == "English" else "Lugar / Terminal:", terminal)
+        ]
+        y_item = y_offset_block3 + 11
+        for label, val in datos_arr:
+            pdf.set_xy(15, y_item)
+            pdf.set_font("Helvetica", "B", 9)
+            pdf.set_text_color(100, 116, 139)
+            pdf.cell(34, 5, label)
+            pdf.set_font("Helvetica", "", 10)
+            pdf.set_text_color(15, 23, 42)
+            pdf.cell(0, 5, str(val))
+            y_item += 5.5
+
+        # Right Column Box: Returning Details
+        pdf.set_xy(107, y_offset_block3)
+        pdf.rect(107, y_offset_block3, 91, 42, style="FD")
+        
+        pdf.set_xy(110, y_offset_block3 + 3)
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_text_color(15, 23, 42)
+        pdf.cell(0, 5, "RETURNING DETAILS" if idioma == "English" else "DETALLES DE REGRESO", ln=1)
+        
+        if tipo_viaje == t["rt"]:
+            fecha_salida_str_pdf = fecha_salida.strftime('%B %d, %Y')
+            if idioma != "English":
+                for eng, esp in meses_es.items():
+                    fecha_salida_str_pdf = fecha_salida_str_pdf.replace(eng, esp)
+
+            datos_dep = [
+                ("Departure Date:" if idioma == "English" else "Fecha de Salida:", fecha_salida_str_pdf),
+                ("Flight & Airline:" if idioma == "English" else "Vuelo y Aerolínea:", vuelo_salida_completo),
+                ("Flight Time:" if idioma == "English" else "Hora del Vuelo:", hora_salida.strftime('%I:%M %p')),
+                ("Hotel Pick-up:" if idioma == "English" else "Pick-up en Hotel:", f"{hora_pickup.strftime('%I:%M %p')} (Lobby)")
+            ]
+            y_item = y_offset_block3 + 11
+            for label, val in datos_dep:
+                pdf.set_xy(110, y_item)
+                pdf.set_font("Helvetica", "B", 9)
+                pdf.set_text_color(100, 116, 139)
+                pdf.cell(32, 5, label)
+                if "Pick-up" in label:
+                    pdf.set_font("Helvetica", "B", 9.5)
+                    pdf.set_text_color(37, 99, 235)
+                else:
+                    pdf.set_font("Helvetica", "", 10)
+                    pdf.set_text_color(15, 23, 42)
+                pdf.cell(0, 5, str(val))
+                y_item += 5.5
+        else:
+            pdf.set_xy(110, y_offset_block3 + 18)
+            pdf.set_font("Helvetica", "I", 10)
+            pdf.set_text_color(148, 163, 184)
+            no_ret_txt = "No return service requested for this trip." if idioma == "English" else "No se solicitó servicio de regreso."
+            pdf.cell(0, 5, no_ret_txt)
+
+    # --- BLOCK 4: IMPORTANT TRAVELER NOTES ---
+    y_offset_block4 = y_offset_block3 + 48
+    pdf.set_xy(12, y_offset_block4)
     pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(15, 23, 42)
     pdf.cell(0, 5, "IMPORTANT TRAVELER NOTES" if idioma == "English" else "NOTAS IMPORTANTES PARA EL VIAJERO", ln=1)
     
-    y_policy = 223.0
+    y_policy = y_offset_block4 + 7
     for linea in INFO_POLICIES.split("\n"):
         pdf.escribir_linea_mixta(12, y_policy, linea, 4.5, pt_size=9, c_normal=(30, 41, 59), c_bold=(15, 23, 42))
         y_policy += 5.5
     
-    # --- PAGE 2: MAP ---
-    pdf.add_page()
-    mapa_a_usar = "map1.png" if terminal == "Terminal 1" else "Map.png"
-    
-    if os.path.exists(mapa_a_usar):
-        pdf.set_auto_page_break(False, margin=0)
-        pdf.image(mapa_a_usar, x=0, y=0, w=210, h=297)
-        pdf.set_auto_page_break(True, margin=10)
-    else:
-        pdf.set_text_color(239, 68, 68)
-        pdf.set_font("Helvetica", "B", 12)
-        err_map_txt = f"[Error: '{mapa_a_usar}' is missing]" if idioma == "English" else f"[Error: Falta el archivo '{mapa_a_usar}']"
-        pdf.cell(0, 20, err_map_txt, ln=1, align="C")
+    # --- PAGE 2: MAP (Only for Arrival-based transfers) ---
+    if not is_dep_only:
+        pdf.add_page()
+        mapa_a_usar = "map1.png" if terminal == "Terminal 1" else "Map.png"
+        
+        if os.path.exists(mapa_a_usar):
+            pdf.set_auto_page_break(False, margin=0)
+            pdf.image(mapa_a_usar, x=0, y=0, w=210, h=297)
+            pdf.set_auto_page_break(True, margin=10)
+        else:
+            pdf.set_text_color(239, 68, 68)
+            pdf.set_font("Helvetica", "B", 12)
+            err_map_txt = f"[Error: '{mapa_a_usar}' is missing]" if idioma == "English" else f"[Error: Falta el archivo '{mapa_a_usar}']"
+            pdf.cell(0, 20, err_map_txt, ln=1, align="C")
 
     return pdf.output(dest='S')
 
@@ -449,7 +568,7 @@ st.markdown(t["btn_process"])
 if st.button(t["btn_gen"], type="primary", use_container_width=True):
     if not nombre_input:
         st.error(t["err_name"])
-    elif not confirmacion or not num_vuelo_llegada:
+    elif not confirmacion:
         st.error(t["err_req"])
     elif tipo_viaje == t["rt"] and not num_vuelo_salida:
         st.error(t["err_dep"])
@@ -460,7 +579,13 @@ if st.button(t["btn_gen"], type="primary", use_container_width=True):
             
             st.success(t["success"])
             
-            tag_viaje = "Roundtrip" if tipo_viaje == t["rt"] else "One Way"
+            if tipo_viaje == t["rt"]:
+                tag_viaje = "Roundtrip"
+            elif tipo_viaje == t["ow_dep"]:
+                tag_viaje = "Departure"
+            else:
+                tag_viaje = "One Way"
+                
             nombre_archivo_pdf = f"{tag_viaje} Transportation voucher- {confirmacion}- {nombre_huesped}.pdf"
             
             st.download_button(
