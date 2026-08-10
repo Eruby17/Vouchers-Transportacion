@@ -30,7 +30,7 @@ t = {
     "airline_dep": "Departure Airline" if idioma == "English" else "Aerolínea de Salida",
     "time_arr": "Arrival Time" if idioma == "English" else "Hora de Llegada",
     "time_dep": "Flight Departure Time" if idioma == "English" else "Hora de Salida del Vuelo",
-    "conf": "Confirmation Number" if idioma == "English" else "Número de Confirmación",
+    "conf": "Hotel Confirmation" if idioma == "English" else "Confirmación del Hotel",
     "flight": "Flight Number" if idioma == "English" else "Número de Vuelo",
     "flight_dep": "Departure Flight Number" if idioma == "English" else "Número de Vuelo de Salida",
     "term": "Arrival Terminal" if idioma == "English" else "Terminal de Llegada",
@@ -72,6 +72,10 @@ if "time_arr_val" not in st.session_state:
     st.session_state["time_arr_val"] = "12:00"
 if "time_dep_val" not in st.session_state:
     st.session_state["time_dep_val"] = "15:00"
+if "date_arr_val" not in st.session_state:
+    st.session_state["date_arr_val"] = datetime.date.today()
+if "date_dep_val" not in st.session_state:
+    st.session_state["date_dep_val"] = datetime.date.today()
 
 def reset_form():
     st.session_state["guest_name"] = ""
@@ -84,6 +88,8 @@ def reset_form():
     st.session_state["children_count"] = 0
     st.session_state["time_arr_val"] = "12:00"
     st.session_state["time_dep_val"] = "15:00"
+    st.session_state["date_arr_val"] = datetime.date.today()
+    st.session_state["date_dep_val"] = datetime.date.today()
 
 st.sidebar.button(t["reset"], on_click=reset_form, use_container_width=True)
 
@@ -127,9 +133,9 @@ if tipo_viaje in [t["ow_arr"], t["rt"]]:
     with tab1:
         col1, col2, col3 = st.columns(3)
         with col1:
-            nombre_input = st.text_input(t["guest"], key="guest_name", placeholder="E.g., ALFREDO RIVERA")
+            nombre_input = st.text_input(t["guest"], key="guest_name")
             nombre_huesped = nombre_input.strip().title()
-            fecha_llegada = st.date_input(t["date_arr"], datetime.date.today())
+            fecha_llegada = st.date_input(t["date_arr"], key="date_arr_val")
             
             st.write(t["addons"])
             requiere_car_seats = st.checkbox(t["cs"], key="cs_check")
@@ -137,7 +143,7 @@ if tipo_viaje in [t["ow_arr"], t["rt"]]:
         
         with col2:
             aerolinea_llegada = st.selectbox(t["airline_arr"], lista_aerolineas, key="air_arr")
-            hora_llegada_str = st.text_input(t["time_arr"], key="time_arr_val", placeholder="HH:MM (24h format)")
+            hora_llegada_str = st.text_input(t["time_arr"], key="time_arr_val")
             try:
                 h_arr, m_arr = map(int, hora_llegada_str.split(":"))
                 hora_llegada = datetime.time(h_arr, m_arr)
@@ -145,10 +151,10 @@ if tipo_viaje in [t["ow_arr"], t["rt"]]:
                 st.error("Invalid Arrival Time format. Using 12:00 as fallback.")
                 hora_llegada = datetime.time(12, 0)
                 
-            confirmacion = st.text_input(t["conf"], key="conf_num", placeholder="E.g., CD-98765").upper()
+            confirmacion = st.text_input(t["conf"], key="conf_num").upper()
 
         with col3:
-            num_vuelo_llegada = st.text_input(t["flight"], key="fl_arr", placeholder="E.g., 2468")
+            num_vuelo_llegada = st.text_input(t["flight"], key="fl_arr")
             terminal_seleccionada = st.selectbox(t["term"], ["Terminal 2", "Terminal 1"], index=0)
             
             st.write(t["pax"])
@@ -163,10 +169,10 @@ else:
     # Si es solo salida, pedimos nombre y confirmación directamente en la pantalla principal
     col_dep_only_1, col_dep_only_2 = st.columns(2)
     with col_dep_only_1:
-        nombre_input = st.text_input(t["guest"], key="guest_name", placeholder="E.g., ALFREDO RIVERA")
+        nombre_input = st.text_input(t["guest"], key="guest_name")
         nombre_huesped = nombre_input.strip().title()
     with col_dep_only_2:
-        confirmacion = st.text_input(t["conf"], key="conf_num", placeholder="E.g., CD-98765").upper()
+        confirmacion = st.text_input(t["conf"], key="conf_num").upper()
 
 # --- TAB SALIDA ---
 fecha_salida = None
@@ -179,22 +185,20 @@ if tipo_viaje in [t["ow_dep"], t["rt"]]:
         col_dep1, col_dep2, col_dep3 = st.columns(3)
         
         with col_dep1:
-            # Auto-calcular fecha salida a llegada + 4 días (promedio estancia) si es viaje redondo
-            default_dep_date = fecha_llegada + datetime.timedelta(days=4) if tipo_viaje == t["rt"] else datetime.date.today()
-            fecha_salida = d_date = st.date_input(t["date_dep"], default_dep_date)
+            fecha_salida = d_date = st.date_input(t["date_dep"], key="date_dep_val")
             
-            # Sincronización automática de aerolínea: selecciona la misma de llegada por defecto
+            # Sincronización automática de aerolínea: selecciona siempre la misma de llegada en Round Trip
             if tipo_viaje == t["rt"] and 'aerolinea_llegada' in locals():
                 default_idx = lista_aerolineas.index(aerolinea_llegada) if aerolinea_llegada in lista_aerolineas else 0
+                aerolinea_salida = st.selectbox(t["airline_dep"], lista_aerolineas, index=default_idx, key=f"air_dep_{aerolinea_llegada}")
             else:
-                default_idx = 0
-            aerolinea_salida = st.selectbox(t["airline_dep"], lista_aerolineas, index=default_idx, key="air_dep")
+                aerolinea_salida = st.selectbox(t["airline_dep"], lista_aerolineas, key="air_dep_standalone")
 
         with col_dep2:
-            num_vuelo_salida = st.text_input(t["flight_dep"], key="fl_dep", placeholder="E.g., 1357")
+            num_vuelo_salida = st.text_input(t["flight_dep"], key="fl_dep")
             vuelo_salida_completo = f"{aerolinea_salida} {num_vuelo_salida}".strip()
             
-            hora_salida_str = st.text_input(t["time_dep"], key="time_dep_val", placeholder="HH:MM (24h format)")
+            hora_salida_str = st.text_input(t["time_dep"], key="time_dep_val")
             try:
                 h_dep, m_dep = map(int, hora_salida_str.split(":"))
                 hora_salida = datetime.time(h_dep, m_dep)
@@ -210,7 +214,7 @@ if tipo_viaje in [t["ow_dep"], t["rt"]]:
             custom_pickup = st.checkbox(t["custom_p"])
             
             if custom_pickup:
-                hora_pickup_str = st.text_input(t["p_manual"], value=hora_auto_str, placeholder="HH:MM (24h format)")
+                hora_pickup_str = st.text_input(t["p_manual"], value=hora_auto_str)
             else:
                 st.text_input(t["p_auto"], value=hora_auto_str, disabled=True)
                 hora_pickup_str = hora_auto_str
