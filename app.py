@@ -51,7 +51,6 @@ t = {
 }
 
 # --- SESSION STATE & RESET ---
-# Se utiliza session_state para poder realizar un "hard reset" del formulario
 if "guest_name" not in st.session_state:
     st.session_state["guest_name"] = ""
 if "conf_num" not in st.session_state:
@@ -75,7 +74,7 @@ if "time_dep_val" not in st.session_state:
 if "date_arr_val" not in st.session_state:
     st.session_state["date_arr_val"] = datetime.date.today()
 if "date_dep_val" not in st.session_state:
-    st.session_state["date_dep_val"] = datetime.date.today()
+    st.session_state["date_dep_val"] = datetime.date.today() + datetime.timedelta(days=4)
 
 def reset_form():
     st.session_state["guest_name"] = ""
@@ -89,7 +88,7 @@ def reset_form():
     st.session_state["time_arr_val"] = "12:00"
     st.session_state["time_dep_val"] = "15:00"
     st.session_state["date_arr_val"] = datetime.date.today()
-    st.session_state["date_dep_val"] = datetime.date.today()
+    st.session_state["date_dep_val"] = datetime.date.today() + datetime.timedelta(days=4)
 
 st.sidebar.button(t["reset"], on_click=reset_form, use_container_width=True)
 
@@ -106,7 +105,7 @@ st.subheader(t["sub_info"])
 
 tipo_viaje = st.radio(t["type"], [t["ow_arr"], t["ow_dep"], t["rt"]], horizontal=True)
 
-lista_aerolineas = ["Aeroméxico", "Alaska Airlines", "American Airlines", "Delta Airlines", "United Airlines", "Frontier Airlines", "Jet Blue Airlines", "Southwest Airlines", "Viva Aerobus", "Volaris", "WestJet Airlines"]
+lista_aerolineas = ["Air Canada", "Aeroméxico", "Alaska Airlines", "American Airlines", "Delta Airlines", "United Airlines", "Frontier Airlines", "Jet Blue Airlines", "Southwest Airlines", "Viva Aerobus", "Volaris", "WestJet Airlines"]
 
 # Crear pestañas dependiendo de la selección
 if tipo_viaje == t["rt"]:
@@ -185,7 +184,9 @@ if tipo_viaje in [t["ow_dep"], t["rt"]]:
         col_dep1, col_dep2, col_dep3 = st.columns(3)
         
         with col_dep1:
-            fecha_salida = d_date = st.date_input(t["date_dep"], key="date_dep_val")
+            # Si es viaje redondo, calcular automáticamente la fecha por defecto a 4 días después de la llegada
+            fecha_defecto_salida = (fecha_llegada + datetime.timedelta(days=4)) if tipo_viaje == t["rt"] else st.session_state["date_dep_val"]
+            fecha_salida = st.date_input(t["date_dep"], value=fecha_defecto_salida, key="date_dep_val")
             
             # Sincronización automática de aerolínea: selecciona siempre la misma de llegada en Round Trip
             if tipo_viaje == t["rt"] and 'aerolinea_llegada' in locals():
@@ -379,7 +380,7 @@ def crear_pdf(terminal):
     else:
         y_offset_block2 = 78
 
-    # --- BLOQUE 2: RESUMEN DE VIAJE (Midiendo anchos con get_string_width) ---
+    # --- BLOQUE 2: RESUMEN DE VIAJE ---
     pdf.set_xy(12, y_offset_block2)
     pdf.set_fill_color(255, 255, 255)
     pdf.set_draw_color(226, 232, 240)
