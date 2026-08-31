@@ -108,7 +108,8 @@ st.subheader(t["sub_info"])
 
 tipo_viaje = st.radio(t["type"], [t["ow_arr"], t["ow_dep"], t["rt"]], horizontal=True)
 
-lista_aerolineas = ["Air Canada", "Aeroméxico", "Alaska Airlines", "American Airlines", "Delta Airlines", "United Airlines", "Frontier Airlines", "Jet Blue Airlines", "Southwest Airlines", "Viva Aerobus", "Volaris", "WestJet Airlines", "Private Jet"]
+# Se agrega JSX a la lista de aerolíneas
+lista_aerolineas = ["Air Canada", "Aeroméxico", "Alaska Airlines", "American Airlines", "Delta Airlines", "United Airlines", "Frontier Airlines", "Jet Blue Airlines", "JSX", "Southwest Airlines", "Viva Aerobus", "Volaris", "WestJet Airlines", "Private Jet"]
 
 # Crear pestañas dependiendo de la selección
 if tipo_viaje == t["rt"]:
@@ -640,3 +641,4 @@ if st.button(t["btn_gen"], type="primary", use_container_width=True):
             st.info("Para limpiar el formulario para un nuevo cliente, haz clic en el botón 'Limpiar Formulario' en la barra izquierda." if idioma != "English" else "To clear the form for a new client, click 'Reset Form' on the left sidebar.")
         except Exception as e:
             st.error(f"Technical error during PDF compilation: {e}" if idioma == "English" else f"Error técnico durante la compilación del PDF: {e}")
+
