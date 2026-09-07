@@ -213,7 +213,7 @@ if tipo_viaje in [t["ow_dep"], t["rt"]]:
 
         with col_dep3:
             dt_vuelo = datetime.datetime.combine(datetime.date.today(), hora_salida)
-            dt_pickup_auto = dt_vuelo - datetime.timedelta(hours=3, minutes=30)
+            dt_pickup_auto = dt_vuelo - datetime.timedelta(hours=3, minutes=00)
             hora_auto_str = dt_pickup_auto.strftime('%H:%M')
             
             custom_pickup = st.checkbox(t["custom_p"])
