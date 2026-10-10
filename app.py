@@ -633,16 +633,20 @@ if st.button(t["btn_gen"], type="primary", use_container_width=True):
                 
             nombre_archivo_pdf = f"{tag_viaje} Transportation voucher- {confirmacion}- {nombre_huesped}.pdf"
             
-            # Vista previa del mismo PDF antes de descargarlo.
-            st.subheader("PDF Preview" if idioma == "English" else "Vista previa del PDF")
-            pdf_base64 = base64.b64encode(pdf_data).decode("ascii")
-            components.html(
-                f'<iframe src="data:application/pdf;base64,{pdf_base64}" '
-                'width="100%" height="700" style="border:1px solid #e2e8f0; border-radius:8px;" '
-                'title="Voucher PDF Preview"></iframe>',
-                height=715,
-                scrolling=False,
-            )
+# -------------------------------------
+# VISTA PREVIA DEL VOUCHER PDF
+# -------------------------------------
+
+st.subheader(
+    "PDF Preview"
+    if idioma == "English"
+    else "Vista previa del PDF"
+)
+
+st.pdf(
+    pdf_data,
+    height=700
+)
 
             st.download_button(
                 label=t["btn_dl"],
