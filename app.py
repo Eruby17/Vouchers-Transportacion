@@ -633,20 +633,24 @@ if st.button(t["btn_gen"], type="primary", use_container_width=True):
                 
             nombre_archivo_pdf = f"{tag_viaje} Transportation voucher- {confirmacion}- {nombre_huesped}.pdf"
             
-# -------------------------------------
-# VISTA PREVIA DEL VOUCHER PDF
-# -------------------------------------
+            # -------------------------------------
+            # VISTA PREVIA DEL VOUCHER PDF
+            # -------------------------------------
 
-st.subheader(
-    "PDF Preview"
-    if idioma == "English"
-    else "Vista previa del PDF"
-)
+            st.subheader(
+                "PDF Preview"
+                if idioma == "English"
+                else "Vista previa del PDF"
+            )
 
-st.pdf(
-    pdf_data,
-    height=700
-)
+            st.pdf(
+                pdf_data,
+                height=700
+            )
+
+            # -------------------------------------
+            # DESCARGAR VOUCHER
+            # -------------------------------------
 
             st.download_button(
                 label=t["btn_dl"],
@@ -655,6 +659,16 @@ st.pdf(
                 mime="application/pdf",
                 use_container_width=True
             )
-            st.info("Para limpiar el formulario para un nuevo cliente, haz clic en el botón 'Limpiar Formulario' en la barra izquierda." if idioma != "English" else "To clear the form for a new client, click 'Reset Form' on the left sidebar.")
+
+            st.info(
+                "Para limpiar el formulario para un nuevo cliente, haz clic en el botón 'Limpiar Formulario' en la barra izquierda."
+                if idioma != "English"
+                else "To clear the form for a new client, click 'Reset Form' on the left sidebar."
+            )
+
         except Exception as e:
-            st.error(f"Technical error during PDF compilation: {e}" if idioma == "English" else f"Error técnico durante la compilación del PDF: {e}")
+            st.error(
+                f"Technical error during PDF compilation: {e}"
+                if idioma == "English"
+                else f"Error técnico durante la compilación del PDF: {e}"
+            )
