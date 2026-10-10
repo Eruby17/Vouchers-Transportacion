@@ -2,6 +2,8 @@ import streamlit as st
 import datetime
 from fpdf import FPDF
 import os
+import base64
+import streamlit.components.v1 as components
 
 # Streamlit Page Configuration
 st.set_page_config(page_title="Corporate Travel Alliance Voucher Generator", layout="centered", page_icon="📋")
@@ -631,6 +633,17 @@ if st.button(t["btn_gen"], type="primary", use_container_width=True):
                 
             nombre_archivo_pdf = f"{tag_viaje} Transportation voucher- {confirmacion}- {nombre_huesped}.pdf"
             
+            # Vista previa del mismo PDF antes de descargarlo.
+            st.subheader("PDF Preview" if idioma == "English" else "Vista previa del PDF")
+            pdf_base64 = base64.b64encode(pdf_data).decode("ascii")
+            components.html(
+                f'<iframe src="data:application/pdf;base64,{pdf_base64}" '
+                'width="100%" height="700" style="border:1px solid #e2e8f0; border-radius:8px;" '
+                'title="Voucher PDF Preview"></iframe>',
+                height=715,
+                scrolling=False,
+            )
+
             st.download_button(
                 label=t["btn_dl"],
                 data=pdf_data,
@@ -641,4 +654,3 @@ if st.button(t["btn_gen"], type="primary", use_container_width=True):
             st.info("Para limpiar el formulario para un nuevo cliente, haz clic en el botón 'Limpiar Formulario' en la barra izquierda." if idioma != "English" else "To clear the form for a new client, click 'Reset Form' on the left sidebar.")
         except Exception as e:
             st.error(f"Technical error during PDF compilation: {e}" if idioma == "English" else f"Error técnico durante la compilación del PDF: {e}")
-
