@@ -175,11 +175,43 @@ if tipo_viaje in [t["ow_arr"], t["rt"]]:
     vuelo_llegada_completo = f"{aerolinea_llegada} {num_vuelo_llegada}".strip()
 else:
     col_dep_only_1, col_dep_only_2 = st.columns(2)
+
     with col_dep_only_1:
-        nombre_input = st.text_input(t["guest"], key="guest_name")
+        nombre_input = st.text_input(
+            t["guest"],
+            key="guest_name"
+        )
         nombre_huesped = nombre_input.strip().title()
+
     with col_dep_only_2:
-        confirmacion = st.text_input(t["conf"], key="conf_num").upper()
+        confirmacion = st.text_input(
+            t["conf"],
+            key="conf_num"
+        ).upper()
+
+    # -------------------------------------
+    # PASAJEROS - ONE WAY DEPARTURE
+    # -------------------------------------
+
+    st.write(t["pax"])
+
+    col_adultos, col_ninos = st.columns(2)
+
+    with col_adultos:
+        adultos = st.number_input(
+            t["adults"],
+            min_value=1,
+            step=1,
+            key="adults_count"
+        )
+
+    with col_ninos:
+        ninos = st.number_input(
+            t["children"],
+            min_value=0,
+            step=1,
+            key="children_count"
+        )
 
 # --- TAB SALIDA ---
 fecha_salida = None
