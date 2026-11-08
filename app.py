@@ -33,6 +33,10 @@ t = {
     "gs": "Include Grocery Stop?" if idioma == "English" else "¿Incluir Parada de Súper?",
     "airline_arr": "Arrival Airline" if idioma == "English" else "Aerolínea de Llegada",
     "airline_dep": "Departure Airline" if idioma == "English" else "Aerolínea de Salida",
+    "airline_other": "Other airline (enter manually)" if idioma == "English" else "Otra aerolínea (escribir manualmente)",
+    "airline_custom_arr": "Enter arrival airline" if idioma == "English" else "Escribe la aerolínea de llegada",
+    "airline_custom_dep": "Enter departure airline" if idioma == "English" else "Escribe la aerolínea de salida",
+    "err_airline": "Please enter the airline name." if idioma == "English" else "Por favor, escribe el nombre de la aerolínea",
     "time_arr": "Arrival Time" if idioma == "English" else "Hora de Llegada",
     "time_dep": "Flight Departure Time" if idioma == "English" else "Hora de Salida del Vuelo",
     "conf": "Hotel Confirmation" if idioma == "English" else "Confirmación del Hotel",
@@ -64,6 +68,10 @@ if "fl_arr" not in st.session_state:
     st.session_state["fl_arr"] = ""
 if "fl_dep" not in st.session_state:
     st.session_state["fl_dep"] = ""
+if "air_arr_custom" not in st.session_state:
+    st.session_state["air_arr_custom"] = ""
+if "air_dep_custom" not in st.session_state:
+    st.session_state["air_dep_custom"] = ""
 if "cs_check" not in st.session_state:
     st.session_state["cs_check"] = False
 if "gs_check" not in st.session_state:
@@ -86,6 +94,8 @@ def reset_form():
     st.session_state["conf_num"] = ""
     st.session_state["fl_arr"] = ""
     st.session_state["fl_dep"] = ""
+    st.session_state["air_arr_custom"] = ""
+    st.session_state["air_dep_custom"] = ""
     st.session_state["cs_check"] = False
     st.session_state["gs_check"] = False
     st.session_state["adults_count"] = 2
@@ -110,8 +120,8 @@ st.subheader(t["sub_info"])
 
 tipo_viaje = st.radio(t["type"], [t["ow_arr"], t["ow_dep"], t["rt"]], horizontal=True)
 
-# Se agrega JSX a la lista de aerolíneas
-lista_aerolineas = ["Air Canada", "Aeroméxico", "Alaska Airlines", "American Airlines", "Delta Airlines", "United Airlines", "Frontier Airlines", "Jet Blue Airlines", "JSX", "Southwest Airlines", "Viva Aerobus", "Volaris", "WestJet Airlines", "Private Jet"]
+# Aerolíneas disponibles y opción para ingresar una no incluida en la lista.
+lista_aerolineas = ["Air Canada", "Aeroméxico", "Alaska Airlines", "American Airlines", "Delta Airlines", "United Airlines", "Frontier Airlines", "Jet Blue Airlines", "JSX", "Southwest Airlines", "Viva Aerobus", "Volaris", "WestJet Airlines", "Private Jet", t["airline_other"]]
 
 # Crear pestañas dependiendo de la selección
 if tipo_viaje == t["rt"]:
@@ -147,7 +157,11 @@ if tipo_viaje in [t["ow_arr"], t["rt"]]:
             requiere_grocery = st.checkbox(t["gs"], key="gs_check")
         
         with col2:
-            aerolinea_llegada = st.selectbox(t["airline_arr"], lista_aerolineas, key="air_arr")
+            seleccion_aerolinea_llegada = st.selectbox(t["airline_arr"], lista_aerolineas, key="air_arr")
+            if seleccion_aerolinea_llegada == t["airline_other"]:
+                aerolinea_llegada = st.text_input(t["airline_custom_arr"], key="air_arr_custom").strip()
+            else:
+                aerolinea_llegada = seleccion_aerolinea_llegada
             hora_llegada_str = st.text_input(t["time_arr"], key="time_arr_val")
             try:
                 h_arr, m_arr = map(int, hora_llegada_str.split(":"))
@@ -227,11 +241,17 @@ if tipo_viaje in [t["ow_dep"], t["rt"]]:
             fecha_defecto_salida = (fecha_llegada + datetime.timedelta(days=4)) if tipo_viaje == t["rt"] else st.session_state["date_dep_val"]
             fecha_salida = st.date_input(t["date_dep"], value=fecha_defecto_salida, key="date_dep_val")
             
-            if tipo_viaje == t["rt"] and 'aerolinea_llegada' in locals():
-                default_idx = lista_aerolineas.index(aerolinea_llegada) if aerolinea_llegada in lista_aerolineas else 0
-                aerolinea_salida = st.selectbox(t["airline_dep"], lista_aerolineas, index=default_idx, key=f"air_dep_{aerolinea_llegada}")
+            if tipo_viaje == t["rt"] and 'seleccion_aerolinea_llegada' in locals():
+                # El selector conserva su estado aunque cambie el texto de la aerolínea manual.
+                default_idx = lista_aerolineas.index(seleccion_aerolinea_llegada)
+                seleccion_aerolinea_salida = st.selectbox(t["airline_dep"], lista_aerolineas, index=default_idx, key=f"air_dep_{seleccion_aerolinea_llegada}")
             else:
-                aerolinea_salida = st.selectbox(t["airline_dep"], lista_aerolineas, key="air_dep_standalone")
+                seleccion_aerolinea_salida = st.selectbox(t["airline_dep"], lista_aerolineas, key="air_dep_standalone")
+
+            if seleccion_aerolinea_salida == t["airline_other"]:
+                aerolinea_salida = st.text_input(t["airline_custom_dep"], key="air_dep_custom").strip()
+            else:
+                aerolinea_salida = seleccion_aerolinea_salida
 
         with col_dep2:
             num_vuelo_salida = st.text_input(t["flight_dep"], key="fl_dep")
@@ -647,6 +667,10 @@ if st.button(t["btn_gen"], type="primary", use_container_width=True):
         st.error(t["err_name"])
     elif not confirmacion:
         st.error(t["err_req"])
+    elif tipo_viaje in [t["ow_arr"], t["rt"]] and not aerolinea_llegada:
+        st.error(t["err_airline"])
+    elif tipo_viaje in [t["ow_dep"], t["rt"]] and not aerolinea_salida:
+        st.error(t["err_airline"])
     elif tipo_viaje == t["rt"] and not num_vuelo_salida:
         st.error(t["err_dep"])
     else:
