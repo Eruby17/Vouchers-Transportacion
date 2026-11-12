@@ -11,8 +11,16 @@ st.set_page_config(page_title="Corporate Travel Alliance Voucher Generator", lay
 # --- LANGUAGE CONFIGURATION ---
 idioma = st.sidebar.radio("🌐 Language / Idioma", ["English", "Español"], index=0)
 
-# Opción de Aeropuerto Privado CSL en la barra lateral
-csl_private = st.sidebar.checkbox("🛩️ CSL Private Airport / Aeropuerto Privado CSL", value=False)
+modo_voucher = st.sidebar.radio(
+    "📋 Voucher",
+    ["crear", "modificar"],
+    format_func=lambda opcion: (
+        ("Create voucher" if idioma == "English" else "Crear voucher")
+        if opcion == "crear"
+        else ("Modify voucher" if idioma == "English" else "Modificar voucher")
+    ),
+    key="modo_voucher",
+)
 
 # Dictionary for interface translations
 t = {
@@ -59,6 +67,287 @@ t = {
     "reset": "🧹 Reset Form / Limpiar Formulario" if idioma == "English" else "🧹 Limpiar Formulario"
 }
 
+# --- LECTURA Y DATOS EDITABLES DE LOS VOUCHERS ---
+# PyMuPDF sólo es necesario al cargar vouchers existentes.
+import base64
+import hashlib
+import json
+import re
+import zlib
+
+MARCADOR_VOUCHER = "CTA-VOUCHER-V1:"
+AEROLINEAS_CONOCIDAS = (
+    "Air Canada", "Aeroméxico", "Alaska Airlines", "American Airlines",
+    "Delta Airlines", "United Airlines", "Frontier Airlines", "Jet Blue Airlines",
+    "JSX", "Southwest Airlines", "Viva Aerobus", "Volaris",
+    "WestJet Airlines", "Private Jet",
+)
+MESES_PDF = {
+    "enero": 1, "febrero": 2, "marzo": 3, "abril": 4,
+    "mayo": 5, "junio": 6, "julio": 7, "agosto": 8,
+    "septiembre": 9, "setiembre": 9, "octubre": 10,
+    "noviembre": 11, "diciembre": 12,
+    "january": 1, "february": 2, "march": 3, "april": 4,
+    "may": 5, "june": 6, "july": 7, "august": 8,
+    "september": 9, "october": 10, "november": 11, "december": 12,
+}
+
+
+def codificar_datos_voucher(datos):
+    """Conserva datos editables dentro de los metadatos del propio PDF."""
+    contenido = json.dumps(datos, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    return MARCADOR_VOUCHER + base64.urlsafe_b64encode(zlib.compress(contenido, 9)).decode("ascii")
+
+
+def decodificar_datos_voucher(texto):
+    if not texto or not texto.startswith(MARCADOR_VOUCHER):
+        return None
+    # Límite adicional para no procesar cargas descomprimidas enormes.
+    comprimido = base64.b64decode(texto[len(MARCADOR_VOUCHER):], altchars=b"-_", validate=True)
+    dec = zlib.decompressobj()
+    contenido = dec.decompress(comprimido, 16000)
+    if dec.unconsumed_tail or not dec.eof or len(contenido) > 16000:
+        raise ValueError("Los datos del PDF exceden el tamaño permitido.")
+    datos = json.loads(contenido.decode("utf-8"))
+    if not isinstance(datos, dict) or datos.get("schema_version") != 1:
+        raise ValueError("El formato de los datos editables no es compatible.")
+    return datos
+
+
+def normalizar_lineas_pdf(palabras, x_min=0, x_max=99999):
+    """Reconstruye renglones por coordenadas para no mezclar las dos columnas."""
+    seleccion = [p for p in palabras if x_min <= (p[0] + p[2]) / 2 < x_max]
+    seleccion.sort(key=lambda p: ((p[1] + p[3]) / 2, p[0]))
+    filas = []
+    for p in seleccion:
+        centro_y = (p[1] + p[3]) / 2
+        if filas and abs(filas[-1][0] - centro_y) <= 3.5:
+            filas[-1][1].append(p)
+        else:
+            filas.append((centro_y, [p]))
+    return [" ".join(p[4] for p in sorted(fila, key=lambda item: item[0])).strip()
+            for _, fila in filas]
+
+
+def obtener_campo_pdf(lineas, expresiones):
+    for linea in lineas:
+        for expresion in expresiones:
+            encontrado = re.search(expresion, linea, flags=re.IGNORECASE)
+            if encontrado:
+                return encontrado.group(1).strip()
+    return ""
+
+
+def convertir_fecha_pdf(texto):
+    m = re.search(r"([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)\s+(\d{1,2}),?\s+(\d{4})", texto or "")
+    if not m:
+        return ""
+    mes = MESES_PDF.get(m.group(1).casefold())
+    if not mes:
+        return ""
+    try:
+        return datetime.date(int(m.group(3)), mes, int(m.group(2))).isoformat()
+    except ValueError:
+        return ""
+
+
+def convertir_hora_pdf(texto):
+    m = re.search(r"\b(\d{1,2}):(\d{2})\s*([AP]M)?\b", texto or "", re.IGNORECASE)
+    if not m:
+        return ""
+    hora, minuto = int(m.group(1)), int(m.group(2))
+    ampm = (m.group(3) or "").upper()
+    if ampm:
+        if not 1 <= hora <= 12:
+            return ""
+        hora = (hora % 12) + (12 if ampm == "PM" else 0)
+    if not (0 <= hora <= 23 and 0 <= minuto <= 59):
+        return ""
+    return f"{hora:02d}:{minuto:02d}"
+
+
+def separar_aerolinea_vuelo(texto):
+    texto = (texto or "").strip()
+    if not texto:
+        return "", ""
+    for aerolinea in sorted(AEROLINEAS_CONOCIDAS, key=len, reverse=True):
+        if texto.casefold() == aerolinea.casefold():
+            return aerolinea, ""
+        if texto.casefold().startswith(aerolinea.casefold() + " "):
+            return aerolinea, texto[len(aerolinea):].strip()
+    # Para aerolíneas manuales, el número de vuelo se infiere solamente si contiene dígitos.
+    encontrado = re.match(r"^(.+?)\s+([A-Z0-9-]*\d[A-Z0-9-]*)$", texto, re.IGNORECASE)
+    if encontrado:
+        return encontrado.group(1).strip(), encontrado.group(2).strip()
+    return texto, ""
+
+
+def leer_voucher_pdf(archivo_bytes):
+    """Regresa (datos, origen, advertencias). Sólo primera página del voucher."""
+    if not archivo_bytes or len(archivo_bytes) > 12 * 1024 * 1024:
+        raise ValueError("El archivo debe ser un PDF de máximo 12 MB.")
+    if not archivo_bytes.startswith(b"%PDF-"):
+        raise ValueError("El archivo no parece ser un PDF válido.")
+    try:
+        import fitz
+    except ImportError as exc:
+        raise RuntimeError("Instala PyMuPDF con: pip install pymupdf") from exc
+
+    with fitz.open(stream=archivo_bytes, filetype="pdf") as documento:
+        if documento.needs_pass:
+            raise ValueError("Este PDF tiene contraseña. Sube una copia sin contraseña.")
+        if documento.page_count < 1:
+            raise ValueError("El PDF no contiene páginas.")
+        avisos = []
+        try:
+            datos = decodificar_datos_voucher((documento.metadata or {}).get("keywords", ""))
+            if datos is not None:
+                return datos, "metadatos", avisos
+        except (ValueError, UnicodeError, zlib.error, json.JSONDecodeError) as exc:
+            avisos.append(f"No se pudieron usar los datos integrados ({exc}); se intentará leer el texto.")
+
+        pagina = documento[0]
+        palabras = pagina.get_text("words")
+        texto = pagina.get_text("text")
+        if not re.search(r"TRIP SUMMARY|RESUMEN DEL VIAJE", texto, re.IGNORECASE):
+            raise ValueError("No se reconoce el formato de voucher de Corporate Travel Alliance.")
+
+        todas = normalizar_lineas_pdf(palabras)
+        # Las columnas del voucher usan milímetros; PyMuPDF reporta puntos.
+        mm = 72.0 / 25.4
+        izquierda = normalizar_lineas_pdf(palabras, 12 * mm, 106 * mm)
+        derecha = normalizar_lineas_pdf(palabras, 107 * mm, 199 * mm)
+
+        tiene_llegada = bool(re.search(r"ARRIVING DETAILS|DETALLES DE LLEGADA", texto, re.IGNORECASE))
+        tiene_retorno = bool(re.search(r"RETURNING DETAILS|DETALLES DE REGRESO", texto, re.IGNORECASE))
+        tipo = "roundtrip" if tiene_llegada and tiene_retorno and not re.search(
+            r"No return service requested|No se solicitó servicio de regreso", texto, re.IGNORECASE
+        ) else ("arrival" if tiene_llegada else "departure")
+
+        datos = {"schema_version": 1, "type": tipo, "guest_name": "", "confirmation": "",
+                 "adults": 2, "children": 0, "csl_private": False, "car_seats": False,
+                 "grocery": False, "manual_pickup": False, "arrival_airline": "",
+                 "arrival_flight": "", "departure_airline": "", "departure_flight": "",
+                 "arrival_date": "", "departure_date": "", "arrival_time": "12:00",
+                 "departure_time": "15:00", "pickup_time": "11:30", "terminal": "Terminal 2"}
+
+        nombre = re.search(r"Hola,\s*(.+?)!", texto, re.IGNORECASE)
+        if nombre:
+            datos["guest_name"] = nombre.group(1).strip()
+
+        # En la línea del resumen aparecen los tres campos uno tras otro.
+        resumen = next((linea for linea in todas if re.search(
+            r"(?:Confirmation Number|No\. de Confirmación)\s*:", linea, re.IGNORECASE)), "")
+        conf = re.search(
+            r"(?:Confirmation Number|No\.\s*de\s*Confirmaci[oó]n)\s*:\s*(.*?)\s*"
+            r"(?:Transfer Type|Tipo de Traslado)\s*:", resumen, re.IGNORECASE
+        )
+        if conf:
+            datos["confirmation"] = conf.group(1).strip()
+        pasajeros = re.search(r"(\d+)\s*Ad\.\s*/\s*(\d+)\s*(?:Ch\.|Niñ\.|Ni.?\.)", resumen, re.IGNORECASE)
+        if pasajeros:
+            datos["adults"], datos["children"] = int(pasajeros.group(1)), int(pasajeros.group(2))
+        else:
+            avisos.append("No se pudo recuperar el número de pasajeros. Verifícalo.")
+
+        datos["car_seats"] = bool(re.search(r"Complimentary Car Seat|Asiento de Beb[eé]", texto, re.IGNORECASE))
+        datos["grocery"] = bool(re.search(r"Grocery Stop|Parada de S[uú]per", texto, re.IGNORECASE))
+        datos["csl_private"] = bool(re.search(r"AIRPORT PROCEDURES.*CSL PRIVATE AIRPORT", texto, re.IGNORECASE))
+
+        def obtener_detalles(filas):
+            return {
+                "date_arr": obtener_campo_pdf(filas, [r"Arrival Date:\s*(.*)$", r"Fecha de Llegada:\s*(.*)$"]),
+                "date_dep": obtener_campo_pdf(filas, [r"Departure Date:\s*(.*)$", r"Fecha de Salida:\s*(.*)$"]),
+                "flight": obtener_campo_pdf(filas, [r"Flight & Airline:\s*(.*)$", r"Vuelo y Aerol[ií]nea:\s*(.*)$"]),
+                "arrival_time": obtener_campo_pdf(filas, [r"Arrival Time:\s*(.*)$", r"Hora de Llegada:\s*(.*)$"]),
+                "departure_time": obtener_campo_pdf(filas, [r"Flight Time:\s*(.*)$", r"Hora del Vuelo:\s*(.*)$"]),
+                "pickup": obtener_campo_pdf(filas, [r"Hotel Pick-up:\s*(.*)$", r"Pick-up en Hotel:\s*(.*)$"]),
+                "terminal": obtener_campo_pdf(filas, [r"Location / Terminal:\s*(.*)$", r"Lugar / Terminal:\s*(.*)$"]),
+            }
+
+        if tipo == "departure":
+            detalle_dep = obtener_detalles(todas)
+        else:
+            detalle_arr = obtener_detalles(izquierda)
+            datos["arrival_date"] = convertir_fecha_pdf(detalle_arr["date_arr"])
+            datos["arrival_time"] = convertir_hora_pdf(detalle_arr["arrival_time"]) or "12:00"
+            datos["arrival_airline"], datos["arrival_flight"] = separar_aerolinea_vuelo(detalle_arr["flight"])
+            datos["terminal"] = detalle_arr["terminal"] or "Terminal 2"
+            if "CSL Private Airport" in datos["terminal"]:
+                datos["csl_private"] = True
+            detalle_dep = obtener_detalles(derecha) if tipo == "roundtrip" else {}
+
+        if detalle_dep:
+            datos["departure_date"] = convertir_fecha_pdf(detalle_dep["date_dep"])
+            datos["departure_time"] = convertir_hora_pdf(detalle_dep["departure_time"]) or "15:00"
+            datos["departure_airline"], datos["departure_flight"] = separar_aerolinea_vuelo(detalle_dep["flight"])
+            pickup = convertir_hora_pdf(detalle_dep["pickup"])
+            if pickup:
+                datos["pickup_time"] = pickup
+                # El PDF antiguo no distinguía hora manual de automática.
+                # Se usa manual para evitar modificar accidentalmente la hora original.
+                datos["manual_pickup"] = True
+
+        for campo, etiqueta in (("guest_name", "nombre"), ("confirmation", "confirmación")):
+            if not datos[campo]:
+                avisos.append(f"No se identificó la {etiqueta}; complétala antes de generar el PDF.")
+        if tipo != "departure" and not datos["arrival_date"]:
+            avisos.append("Verifica la fecha de llegada: no pudo extraerse del PDF.")
+        if tipo != "arrival" and not datos["departure_date"]:
+            avisos.append("Verifica la fecha de salida: no pudo extraerse del PDF.")
+        if tipo == "departure":
+            avisos.append("En PDFs antiguos de solo salida no es posible deducir el aeropuerto privado; verifica esa casilla.")
+        avisos.append("PDF antiguo: revisa los datos recuperados antes de generar la nueva versión.")
+        return datos, "texto", avisos
+
+
+def aplicar_datos_voucher(datos, idioma_actual):
+    """Precarga los widgets ANTES de que el formulario sea construido."""
+    opciones = list(AEROLINEAS_CONOCIDAS)
+    otro = "Other airline (enter manually)" if idioma_actual == "English" else "Otra aerolínea (escribir manualmente)"
+    tipo = datos.get("type", "arrival")
+    if tipo not in ("arrival", "departure", "roundtrip"):
+        tipo = "arrival"
+    st.session_state["tipo_viaje_code"] = tipo
+    st.session_state["guest_name"] = str(datos.get("guest_name", ""))[:200]
+    st.session_state["conf_num"] = str(datos.get("confirmation", ""))[:150]
+    st.session_state["fl_arr"] = str(datos.get("arrival_flight", ""))[:100]
+    st.session_state["fl_dep"] = str(datos.get("departure_flight", ""))[:100]
+    st.session_state["cs_check"] = bool(datos.get("car_seats", False))
+    st.session_state["gs_check"] = bool(datos.get("grocery", False))
+    st.session_state["csl_private"] = bool(datos.get("csl_private", False))
+    st.session_state["adults_count"] = max(1, min(99, int(datos.get("adults", 2))))
+    st.session_state["children_count"] = max(0, min(99, int(datos.get("children", 0))))
+
+    for campo_estado, campo_datos, predeterminado in (
+        ("date_arr_val", "arrival_date", datetime.date.today()),
+        ("date_dep_val", "departure_date", datetime.date.today() + datetime.timedelta(days=4)),
+    ):
+        try:
+            st.session_state[campo_estado] = datetime.date.fromisoformat(datos[campo_datos])
+        except (KeyError, TypeError, ValueError):
+            st.session_state[campo_estado] = predeterminado
+
+    st.session_state["time_arr_val"] = convertir_hora_pdf(str(datos.get("arrival_time") or "")) or "12:00"
+    st.session_state["time_dep_val"] = convertir_hora_pdf(str(datos.get("departure_time") or "")) or "15:00"
+    st.session_state["custom_pickup"] = bool(datos.get("manual_pickup", False))
+    st.session_state["pickup_manual"] = convertir_hora_pdf(str(datos.get("pickup_time") or "")) or "11:30"
+    st.session_state["terminal_arr"] = "Terminal 1" if datos.get("terminal") == "Terminal 1" else "Terminal 2"
+
+    aerolinea_arr = str(datos.get("arrival_airline", "")).strip()
+    aerolinea_dep = str(datos.get("departure_airline", "")).strip()
+    seleccion_arr = aerolinea_arr if aerolinea_arr in opciones else otro
+    seleccion_dep = aerolinea_dep if aerolinea_dep in opciones else otro
+    # Evitar que valores de un voucher anterior contaminen los selectores dinámicos.
+    for clave in list(st.session_state.keys()):
+        if clave.startswith("air_dep_"):
+            del st.session_state[clave]
+    st.session_state["air_arr"] = seleccion_arr
+    st.session_state["air_arr_custom"] = "" if seleccion_arr != otro else aerolinea_arr
+    st.session_state["air_dep_standalone"] = seleccion_dep
+    st.session_state[f"air_dep_{seleccion_arr}"] = seleccion_dep
+    st.session_state["air_dep_custom"] = "" if seleccion_dep != otro else aerolinea_dep
+
 # --- SESSION STATE & RESET ---
 if "guest_name" not in st.session_state:
     st.session_state["guest_name"] = ""
@@ -104,11 +393,77 @@ def reset_form():
     st.session_state["time_dep_val"] = "15:00"
     st.session_state["date_arr_val"] = datetime.date.today()
     st.session_state["date_dep_val"] = datetime.date.today() + datetime.timedelta(days=4)
+    st.session_state["tipo_viaje_code"] = "arrival"
+    st.session_state["custom_pickup"] = False
+    st.session_state["pickup_manual"] = "11:30"
+    st.session_state["terminal_arr"] = "Terminal 2"
+    st.session_state["pdf_generado"] = None
+    st.session_state["pdf_generado_datos"] = None
+    st.session_state["pdf_origen_hash"] = None
+    st.session_state["pdf_origen_nombre"] = None
+    st.session_state["aviso_carga"] = None
+    for clave in list(st.session_state.keys()):
+        if clave.startswith("air_dep_") or clave == "air_arr":
+            del st.session_state[clave]
 
+# La carga ocurre antes de crear los widgets del formulario. Así se pueden precargar.
+if modo_voucher == "modificar":
+    pdf_subido = st.sidebar.file_uploader(
+        "📎 Upload original PDF / Adjuntar PDF original",
+        type=["pdf"],
+        key="pdf_subido",
+        help="PDF generado por Corporate Travel Alliance, nuevo o antiguo.",
+    )
+    if st.sidebar.button(
+        "📂 Load voucher data" if idioma == "English" else "📂 Cargar datos del voucher",
+        disabled=pdf_subido is None,
+        use_container_width=True,
+    ):
+        try:
+            contenido_pdf = pdf_subido.getvalue()
+            datos_importados, metodo_lectura, advertencias = leer_voucher_pdf(contenido_pdf)
+            aplicar_datos_voucher(datos_importados, idioma)
+            st.session_state["pdf_origen_hash"] = hashlib.sha256(contenido_pdf).hexdigest()
+            st.session_state["pdf_origen_nombre"] = pdf_subido.name
+            st.session_state["aviso_carga"] = {
+                "metodo": metodo_lectura,
+                "advertencias": advertencias,
+            }
+            st.session_state["pdf_generado"] = None
+            st.session_state["pdf_generado_datos"] = None
+            st.rerun()
+        except Exception as exc:
+            st.sidebar.error(f"Could not load PDF: {exc}" if idioma == "English"
+                             else f"No se pudo cargar el PDF: {exc}")
+
+    if st.session_state.get("aviso_carga"):
+        info = st.session_state["aviso_carga"]
+        st.sidebar.success("Voucher loaded. Review the form." if idioma == "English"
+                           else "Voucher cargado. Revisa los datos del formulario.")
+        for advertencia in info["advertencias"]:
+            st.sidebar.warning(advertencia)
+        if pdf_subido is not None and st.session_state.get("pdf_origen_hash") != hashlib.sha256(pdf_subido.getvalue()).hexdigest():
+            st.sidebar.info("Click Load voucher data for this PDF."
+                            if idioma == "English" else "Pulsa Cargar datos para este nuevo PDF.")
+
+# Mantener disponible la opción de aeropuerto privado en ambos modos.
+csl_private = st.sidebar.checkbox(
+    "🛩️ CSL Private Airport / Aeropuerto Privado CSL", value=False, key="csl_private"
+)
 st.sidebar.button(t["reset"], on_click=reset_form, use_container_width=True)
 
-st.title(t["title"])
-st.write(t["desc"])
+if modo_voucher == "modificar":
+    st.title("✏️ Modify voucher" if idioma == "English" else "✏️ Modificar voucher")
+    st.write("Upload a PDF in the sidebar, load its details, edit and regenerate it."
+             if idioma == "English"
+             else "Adjunta el PDF en la barra lateral, carga sus datos, edítalos y genera el voucher corregido.")
+    if not st.session_state.get("pdf_origen_hash"):
+        st.info("Select a PDF and click Load voucher data in the sidebar."
+                if idioma == "English"
+                else "Selecciona un PDF y haz clic en Cargar datos del voucher en la barra lateral.")
+else:
+    st.title(t["title"])
+    st.write(t["desc"])
 
 # --- STATIC FILES ---
 LOGO_DEFAULT_PATH = "logo.jpeg"
@@ -118,7 +473,16 @@ logo_a_usar = LOGO_DEFAULT_PATH if os.path.exists(LOGO_DEFAULT_PATH) else None
 # --- MAIN FORM ---
 st.subheader(t["sub_info"])
 
-tipo_viaje = st.radio(t["type"], [t["ow_arr"], t["ow_dep"], t["rt"]], horizontal=True)
+tipo_viaje_code = st.radio(
+    t["type"], ["arrival", "departure", "roundtrip"], horizontal=True,
+    format_func=lambda opcion: {
+        "arrival": t["ow_arr"], "departure": t["ow_dep"], "roundtrip": t["rt"]
+    }[opcion],
+    key="tipo_viaje_code",
+)
+tipo_viaje = {
+    "arrival": t["ow_arr"], "departure": t["ow_dep"], "roundtrip": t["rt"]
+}[tipo_viaje_code]
 
 # Aerolíneas disponibles y opción para ingresar una no incluida en la lista.
 lista_aerolineas = ["Air Canada", "Aeroméxico", "Alaska Airlines", "American Airlines", "Delta Airlines", "United Airlines", "Frontier Airlines", "Jet Blue Airlines", "JSX", "Southwest Airlines", "Viva Aerobus", "Volaris", "WestJet Airlines", "Private Jet", t["airline_other"]]
@@ -142,6 +506,11 @@ ninos = 0
 requiere_car_seats = False
 requiere_grocery = False
 confirmacion = ""
+aerolinea_llegada = ""
+num_vuelo_llegada = ""
+aerolinea_salida = ""
+num_vuelo_salida = ""
+custom_pickup = False
 
 # --- TAB LLEGADA ---
 if tipo_viaje in [t["ow_arr"], t["rt"]]:
@@ -177,7 +546,7 @@ if tipo_viaje in [t["ow_arr"], t["rt"]]:
             if csl_private:
                 terminal_seleccionada = "CSL Private Airport"
             else:
-                terminal_seleccionada = st.selectbox(t["term"], ["Terminal 2", "Terminal 1"], index=0)
+                terminal_seleccionada = st.selectbox(t["term"], ["Terminal 2", "Terminal 1"], index=0, key="terminal_arr")
             
             st.write(t["pax"])
             sub_c1, sub_c2 = st.columns(2)
@@ -270,10 +639,10 @@ if tipo_viaje in [t["ow_dep"], t["rt"]]:
             dt_pickup_auto = dt_vuelo - datetime.timedelta(hours=3, minutes=00)
             hora_auto_str = dt_pickup_auto.strftime('%H:%M')
             
-            custom_pickup = st.checkbox(t["custom_p"])
+            custom_pickup = st.checkbox(t["custom_p"], key="custom_pickup")
             
             if custom_pickup:
-                hora_pickup_str = st.text_input(t["p_manual"], value=hora_auto_str)
+                hora_pickup_str = st.text_input(t["p_manual"], value=hora_auto_str, key="pickup_manual")
             else:
                 st.text_input(t["p_auto"], value=hora_auto_str, disabled=True)
                 hora_pickup_str = hora_auto_str
@@ -384,8 +753,11 @@ class VoucherPDF(FPDF):
             self.cell(ancho_texto, alto_celda, segmento, border=0)
             es_negrita = not es_negrita
 
-def crear_pdf(terminal):
+def crear_pdf(terminal, datos_editables=None):
     pdf = VoucherPDF(logo_file=logo_a_usar)
+    if datos_editables is not None:
+        pdf.set_keywords(codificar_datos_voucher(datos_editables))
+        pdf.set_subject("Corporate Travel Alliance - editable transportation voucher")
     pdf.alias_nb_pages()
     pdf.add_page()
     
@@ -659,13 +1031,43 @@ def crear_pdf(terminal):
 
     return pdf.output(dest='S')
 
+def datos_actuales_voucher():
+    """Valores originales del formulario, para permitir recuperar y editar nuevos PDFs."""
+    return {
+        "schema_version": 1,
+        "type": tipo_viaje_code,
+        "language": idioma,
+        "guest_name": nombre_huesped,
+        "confirmation": confirmacion,
+        "arrival_date": fecha_llegada.isoformat() if tipo_viaje_code != "departure" else "",
+        "departure_date": fecha_salida.isoformat() if fecha_salida else "",
+        "arrival_airline": aerolinea_llegada if tipo_viaje_code != "departure" else "",
+        "arrival_flight": num_vuelo_llegada if tipo_viaje_code != "departure" else "",
+        "arrival_time": hora_llegada.strftime("%H:%M"),
+        "departure_airline": aerolinea_salida if tipo_viaje_code != "arrival" else "",
+        "departure_flight": num_vuelo_salida if tipo_viaje_code != "arrival" else "",
+        "departure_time": hora_salida.strftime("%H:%M"),
+        "pickup_time": hora_pickup.strftime("%H:%M"),
+        "manual_pickup": bool(custom_pickup),
+        "terminal": terminal_seleccionada if tipo_viaje_code != "departure" else "",
+        "csl_private": bool(csl_private),
+        "adults": int(adultos),
+        "children": int(ninos),
+        "car_seats": bool(requiere_car_seats),
+        "grocery": bool(requiere_grocery),
+    }
+
 # --- BUTTON ACTION PROCESSING ---
 st.markdown(t["btn_process"])
 
-if st.button(t["btn_gen"], type="primary", use_container_width=True):
-    if not nombre_input:
+if st.button(
+    ("💾 Regenerate corrected PDF" if idioma == "English" else "💾 Generar voucher corregido")
+    if modo_voucher == "modificar" else t["btn_gen"],
+    type="primary", use_container_width=True,
+):
+    if not nombre_input.strip():
         st.error(t["err_name"])
-    elif not confirmacion:
+    elif not confirmacion.strip():
         st.error(t["err_req"])
     elif tipo_viaje in [t["ow_arr"], t["rt"]] and not aerolinea_llegada:
         st.error(t["err_airline"])
@@ -675,56 +1077,55 @@ if st.button(t["btn_gen"], type="primary", use_container_width=True):
         st.error(t["err_dep"])
     else:
         try:
-            pdf_raw = crear_pdf(terminal_seleccionada)
-            pdf_data = bytes(pdf_raw, 'latin-1') 
-            
-            st.success(t["success"])
-            
+            datos_para_pdf = datos_actuales_voucher()
+            pdf_raw = crear_pdf(terminal_seleccionada, datos_para_pdf)
+            # fpdf2 devuelve bytearray; PyFPDF antiguo devuelve str.
+            pdf_data = pdf_raw.encode("latin-1") if isinstance(pdf_raw, str) else bytes(pdf_raw)
+
             if tipo_viaje == t["rt"]:
                 tag_viaje = "Roundtrip"
             elif tipo_viaje == t["ow_dep"]:
                 tag_viaje = "Departure"
             else:
                 tag_viaje = "One Way"
-                
+
             nombre_archivo_pdf = f"{tag_viaje} Transportation voucher- {confirmacion}- {nombre_huesped}.pdf"
-            
-            # -------------------------------------
-            # VISTA PREVIA DEL VOUCHER PDF
-            # -------------------------------------
-
-            st.subheader(
-                "PDF Preview"
-                if idioma == "English"
-                else "Vista previa del PDF"
-            )
-
-            st.pdf(
-                pdf_data,
-                height=700
-            )
-
-            # -------------------------------------
-            # DESCARGAR VOUCHER
-            # -------------------------------------
-
-            st.download_button(
-                label=t["btn_dl"],
-                data=pdf_data,
-                file_name=nombre_archivo_pdf,
-                mime="application/pdf",
-                use_container_width=True
-            )
-
-            st.info(
-                "Para limpiar el formulario para un nuevo cliente, haz clic en el botón 'Limpiar Formulario' en la barra izquierda."
-                if idioma != "English"
-                else "To clear the form for a new client, click 'Reset Form' on the left sidebar."
-            )
-
+            st.session_state["pdf_generado"] = pdf_data
+            st.session_state["pdf_generado_datos"] = datos_para_pdf
+            st.session_state["pdf_generado_nombre"] = nombre_archivo_pdf
+            st.success(t["success"])
         except Exception as e:
             st.error(
                 f"Technical error during PDF compilation: {e}"
                 if idioma == "English"
                 else f"Error técnico durante la compilación del PDF: {e}"
             )
+
+# La vista previa y la descarga permanecen al interactuar con la página.
+if st.session_state.get("pdf_generado") is not None:
+    if st.session_state.get("pdf_generado_datos") != datos_actuales_voucher():
+        st.info("Form details have changed. Generate the PDF again to apply them."
+                if idioma == "English"
+                else "Modificaste los datos. Vuelve a generar el PDF para aplicar los cambios.")
+    else:
+        # -------------------------------------
+        # VISTA PREVIA DEL VOUCHER PDF
+        # -------------------------------------
+        st.subheader("PDF Preview" if idioma == "English" else "Vista previa del PDF")
+        st.pdf(st.session_state["pdf_generado"], height=700)
+
+        # -------------------------------------
+        # DESCARGAR VOUCHER
+        # -------------------------------------
+        st.download_button(
+            label=t["btn_dl"],
+            data=st.session_state["pdf_generado"],
+            file_name=st.session_state["pdf_generado_nombre"],
+            mime="application/pdf",
+            use_container_width=True,
+        )
+        st.info(
+            "Para limpiar el formulario para un nuevo cliente, haz clic en el botón 'Limpiar Formulario' en la barra izquierda."
+            if idioma != "English"
+            else "To clear the form for a new client, click 'Reset Form' on the left sidebar."
+        )
