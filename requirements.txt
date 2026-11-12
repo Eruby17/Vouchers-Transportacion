@@ -1,3 +1,4 @@
 streamlit
 fpdf
 streamlit-pdf
+pymupdf
